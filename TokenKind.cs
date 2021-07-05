@@ -12,6 +12,9 @@ namespace Parser
         MUL,
         DIV,
 
+        OPEN_BRACKET,
+        CLOSE_BRACKET,
+
         EOF,
 
         TEXT // The default token

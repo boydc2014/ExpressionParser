@@ -18,7 +18,6 @@ namespace Parser
         // This is data structure that drives the final lexer's behavior when facing each char
         private Dictionary<char, List<Func<Token>>> _lexerMap;
 
-
         public ExpressionLexer(string text)
         {
             _text = text;
@@ -27,9 +26,11 @@ namespace Parser
             _lexerUnits[TokenKind.MINUS] = (parseSingleChar('-'), "-");
             _lexerUnits[TokenKind.MUL] = (parseSingleChar('*'), "*");
             _lexerUnits[TokenKind.DIV] = (parseSingleChar('/'), "/");
-            
+            _lexerUnits[TokenKind.OPEN_BRACKET] = (parseSingleChar('('), "(");
+            _lexerUnits[TokenKind.CLOSE_BRACKET] = (parseSingleChar(')'), ")");
+
             _lexerUnits[TokenKind.ID] = (parseRegexPattern(@"\G(_|@|#|\*|\$|@@)?[a-zA-Z][a-zA-Z0-9_]*"), "_$#@" + letters());
-             _lexerUnits[TokenKind.NUM] = (parseRegexPattern(@"\G[0-9]+(\.[0-9]+)?"), digits());
+            _lexerUnits[TokenKind.NUM] = (parseRegexPattern(@"\G[0-9]+(\.[0-9]+)?"), digits());
 
             buildLexerMap();
         }

@@ -46,34 +46,7 @@ namespace Parser
         
         static void printToken(Token t)
         {
-            Console.WriteLine($"  <{printTokenKind(t.Kind)}/{t.Text}>");
-        }
-
-        static string printTokenKind(TokenKind k)
-        {
-            string tokenName = string.Empty;
-            switch(k) 
-            {
-                case TokenKind.ID: 
-                    tokenName = "ID";
-                    break;
-                case TokenKind.NUM:
-                    tokenName = "NUM";
-                    break;
-                case TokenKind.PLUS:
-                    tokenName = "PLUS";
-                    break;
-                case TokenKind.MINUS:
-                    tokenName = "MINUS";
-                    break;
-                case TokenKind.EOF:
-                    tokenName = "EOF";
-                    break;
-                default:
-                    tokenName = "TEXT";
-                    break;
-            }
-            return tokenName;
+            Console.WriteLine($"  <{(t.Kind)}/{t.Text}>");
         }
     }
 }
