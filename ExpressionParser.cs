@@ -23,8 +23,8 @@ namespace Parser
         public Expression ParseExpression(string expression) 
         {
             _lexer = new ExpressionLexer(expression);
-            parseExpression = genParserForBinOp(parsePrimaryExpression, "*/");
-            parseExpression = genParserForBinOp(parseExpression, "+-");
+            parseExpression = genParserForBinOp(parsePrimaryExpression, TokenKind.MUL, TokenKind.DIV);
+            parseExpression = genParserForBinOp(parseExpression, TokenKind.PLUS, TokenKind.MINUS);
 
             return parseExpression();
         }
@@ -33,28 +33,25 @@ namespace Parser
 
         private Expression parsePrimaryExpression()
         {
-            if (_lexer.NextToken().Text == "a" || _lexer.NextToken().Text == "b")
+            var token = _lexer.NextToken();
+            Expression exp = null;
+            switch (token.Kind)
             {
-                var exp = new Identifier(_lexer.NextToken().Text);
-                _lexer.EatToken();
-                return exp;
-            }
-            else if (_lexer.NextToken().Text == "1" || _lexer.NextToken().Text == "2")
-            {
-                var exp = new Identifier(_lexer.NextToken().Text);
-                _lexer.EatToken();
-                return exp;
-            }
-            else if (_lexer.NextToken().Text == "(")
-            {
-                _lexer.EatToken();
-                var exp = parseExpression();
-                _lexer.EatToken(")");
-                return exp;
-            }
-            else 
-            {
-                throw new Exception($"Unknown token {_lexer.NextToken().Text}");
+                case TokenKind.ID:
+                    exp = new Identifier(token.Text);
+                    _lexer.EatToken();
+                    return exp;
+                case TokenKind.NUM:
+                    exp = new Identifier(token.Text);
+                    _lexer.EatToken();
+                    return exp;
+                case TokenKind.OPEN_BRACKET:
+                    _lexer.EatToken();
+                    exp = parseExpression();
+                    _lexer.EatToken(TokenKind.CLOSE_BRACKET);
+                    return exp;
+                default:
+                    throw new Exception($"Unexpected token {token.Kind}, expecting {TokenKind.ID}, {TokenKind.NUM} or {TokenKind.OPEN_BRACKET}");
             }
         }
     
@@ -65,14 +62,14 @@ namespace Parser
         // which is equivalent to
         // S => A S1
         // S1 => e | op S
-        private Func<Expression> genParserForBinOp(Func<Expression> parse, string ops)
+        private Func<Expression> genParserForBinOp(Func<Expression> parse, params TokenKind[] kinds)
         {
             Func<Expression> gened = null;
             gened = () => 
             {
                 var result = parse();
-                var next = _lexer.NextToken().Text;
-                if (ops.Contains(next))
+                var next = _lexer.NextToken();
+                if (Array.IndexOf(kinds, next.Kind) >= 0)
                 {
                     _lexer.EatToken();
                     result = new Expression(next, result, gened());

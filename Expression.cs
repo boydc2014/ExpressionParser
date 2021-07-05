@@ -2,15 +2,15 @@ namespace Parser
 {
     class Expression 
     {
-        private string _op = "null";
-        private Expression _child1 = null;
-        private Expression _child2 = null;
+        private Token _op;
+        private Expression _child1;
+        private Expression _child2;
 
         public Expression()
         {
 
         }
-        public Expression(string op, Expression child1, Expression child2 = null) 
+        public Expression(Token op, Expression child1, Expression child2 = null) 
         {
             _op = op;
             _child1 = child1;
@@ -21,12 +21,12 @@ namespace Parser
         {
             if (_child2 != null) 
             {
-                return "(" + _op + "," + _child1.ToString() + "," + _child2.ToString() + ")";
+                return "(" + _op.Kind + "," + _child1.ToString() + "," + _child2.ToString() + ")";
                 
             } 
             else 
             {
-                return "(" + _op + "," + _child1.ToString() + ")";
+                return "(" + _op.Kind + "," + _child1.ToString() + ")";
             }
         }
     }

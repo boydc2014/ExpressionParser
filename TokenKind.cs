@@ -2,6 +2,7 @@ namespace Parser
 {
     public enum TokenKind
     {
+        NONE,
         ID,
         NUM,
         STRING,

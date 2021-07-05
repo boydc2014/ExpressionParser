@@ -8,6 +8,7 @@ namespace Parser
     {
         private int _index = 0;
         private string _text;
+        private Token _curToken = null;
 
         // TokenKind => (SearchFunction, Firsts)
         // SearchFuntion is a function that search for such a token
@@ -36,7 +37,32 @@ namespace Parser
         }
 
         // Return the next token found, or EOF if hits the end
+        // This function is "idempotent", means multiples calls will return the same result
+        // Unless EatToken() is called to move the needle forward
         public Token NextToken()
+        {
+            if (_curToken != null)
+            {
+                return _curToken;
+            }
+
+            var token = findNextToken();
+            _curToken = token;
+            return token;
+        }
+        public void EatToken(TokenKind kind = TokenKind.NONE)
+        {
+            if (kind != TokenKind.NONE && NextToken().Kind != kind)
+            {
+                throw new System.Exception($"Unexpected token {NextToken().Kind}, expecting {kind}");
+            }
+
+            // Reset cur token
+            _curToken = null;
+        }
+
+        // Actual execution of finding the next token and return
+        private Token findNextToken()
         {
             if (_index >= _text.Length)
             {
@@ -66,15 +92,6 @@ namespace Parser
                 _index++;
                 return new Token(TokenKind.TEXT, curChar.ToString());
             }
-        }
-        public void EatToken(string token = null)
-        {
-            if (token != null && NextToken().Text != token)
-            {
-                throw new System.Exception($"Unexpected token {NextToken().Text}, expecting {token}");
-            }
-
-            _index++;
         }
 
         // Build the reverse map _lexerMap based on _lexerUnits

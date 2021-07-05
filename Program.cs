@@ -23,6 +23,8 @@ namespace Parser
         static void Main(string[] args)
         {
             string[] expressions = {
+                 "_test+5.5",
+                "hello+world",
                 "1+2",
                 "a+1",
                 "a+b*1+2",
@@ -31,7 +33,34 @@ namespace Parser
                 "(1/2"
             };
 
+            TestParser(expressions);
+        }
+        
+        static void printToken(Token t)
+        {
+            Console.WriteLine($"  <{(t.Kind)}/{t.Text}>");
+        }
 
+        static void TestParser(string[] expressions)
+        {
+            foreach (var e in expressions)
+            {
+                var parser = new ExpressionParser();
+                try 
+                {
+                    Console.WriteLine(e);
+                    var exp = parser.ParseExpression(e);
+                    Console.WriteLine(exp);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                }
+            }
+        }
+
+        static void TestLexer(string[] expressions)
+        {
             foreach (var e in expressions)
             {
                 var lexer = new ExpressionLexer(e);
@@ -42,11 +71,6 @@ namespace Parser
                     printToken(token);
                 } while (token.Kind != TokenKind.EOF);
             }
-        }
-        
-        static void printToken(Token t)
-        {
-            Console.WriteLine($"  <{(t.Kind)}/{t.Text}>");
         }
     }
 }
