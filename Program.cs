@@ -23,7 +23,7 @@ namespace Parser
         static void Main(string[] args)
         {
             string[] expressions = {
-                 "_test+5.5",
+                 "_test + 5.5",
                 "hello+world",
                 "1+2",
                 "a+1",
@@ -34,6 +34,7 @@ namespace Parser
             };
 
             TestParser(expressions);
+            //TestLexer(expressions);
         }
         
         static void printToken(Token t)
@@ -69,6 +70,7 @@ namespace Parser
                 do {
                     token = lexer.NextToken();
                     printToken(token);
+                    lexer.EatToken();
                 } while (token.Kind != TokenKind.EOF);
             }
         }

@@ -26,7 +26,12 @@ namespace Parser
             parseExpression = genParserForBinOp(parsePrimaryExpression, TokenKind.MUL, TokenKind.DIV);
             parseExpression = genParserForBinOp(parseExpression, TokenKind.PLUS, TokenKind.MINUS);
 
-            return parseExpression();
+            var exp = parseExpression();
+            if (_lexer.NextToken().Kind == TokenKind.EOF)
+            {
+                return exp;
+            }
+            throw new Exception($"Unable to parse all input, stop at {_lexer.NextToken().Kind}");
         }
 
         private Func<Expression> parseExpression = null;
