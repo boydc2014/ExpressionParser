@@ -29,7 +29,8 @@ namespace Parser
             _lexerUnits[TokenKind.DIV] = (parseSingleChar('/'), "/");
             _lexerUnits[TokenKind.OPEN_BRACKET] = (parseSingleChar('('), "(");
             _lexerUnits[TokenKind.CLOSE_BRACKET] = (parseSingleChar(')'), ")");
-            _lexerUnits[TokenKind.WS] = (parseMultipleChars(" \t"), " \t");
+            _lexerUnits[TokenKind.WS] = (parseMultipleChars(" \t\r\n"), " \t\r\n");
+            _lexerUnits[TokenKind.STRING] = (parseRegexPattern(@"\G(""([^""\\]|\\.)*"")|('([^'\\]|\\.)*')"), "'\"");
 
             _lexerUnits[TokenKind.ID] = (parseRegexPattern(@"\G(_|@|#|\*|\$|@@)?[a-zA-Z][a-zA-Z0-9_]*"), "_$#@" + letters());
             _lexerUnits[TokenKind.NUM] = (parseRegexPattern(@"\G[0-9]+(\.[0-9]+)?"), digits());

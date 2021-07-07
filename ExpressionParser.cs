@@ -5,7 +5,7 @@ namespace Parser
     /*
     Grammar：
     
-    primaryExpression:= ID | NUM | '(' expression ')'
+    primaryExpression:= ID | NUM | STRING | '(' expression ')'
 
     multiplicativeExpression := primaryExpression (*|/ primaryExpression)*
 
@@ -47,6 +47,10 @@ namespace Parser
                     _lexer.EatToken();
                     return exp;
                 case TokenKind.NUM:
+                    exp = new Identifier(token.Text);
+                    _lexer.EatToken();
+                    return exp;
+                case TokenKind.STRING:
                     exp = new Identifier(token.Text);
                     _lexer.EatToken();
                     return exp;

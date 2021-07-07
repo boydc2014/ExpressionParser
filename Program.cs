@@ -23,7 +23,9 @@ namespace Parser
         static void Main(string[] args)
         {
             string[] expressions = {
-                 "_test + 5.5",
+                "\"hel lo\" + 'world'",
+                "'hello' + 'world'",
+                "_test + 5.5",
                 "hello+world",
                 "1+2",
                 "a+1",
