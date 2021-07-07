@@ -84,16 +84,14 @@ namespace Parser
             return gened;
         }
 
-        // Wrapper function on lexer's nextToken to support skip whitespace
+        // Wrapper function on lexer's NextToken() to support skip whitespace
         private Token nextToken(bool skipWS = true)
         {
-            var token = _lexer.NextToken();
-            while (token.Kind == TokenKind.WS && skipWS)
+            while (_lexer.NextToken().Kind == TokenKind.WS && skipWS)
             {
                 _lexer.EatToken();
-                token = _lexer.NextToken();
             }
-            return token;
+            return _lexer.NextToken();
         }
     }
 }
