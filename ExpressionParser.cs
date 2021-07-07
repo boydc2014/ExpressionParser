@@ -20,7 +20,7 @@ namespace Parser
         {
         }
 
-        public Expression ParseExpression(string expression) 
+        public SyntaxNode ParseExpression(string expression) 
         {
             _lexer = new ExpressionLexer(expression);
             parseExpression = genParserForBinOp(parsePrimaryExpression, TokenKind.MUL, TokenKind.DIV);
@@ -34,24 +34,18 @@ namespace Parser
             throw new Exception($"Unable to parse all input, stop at {nextToken().Kind}");
         }
 
-        private Func<Expression> parseExpression = null;
+        private Func<SyntaxNode> parseExpression = null;
 
-        private Expression parsePrimaryExpression()
+        private SyntaxNode parsePrimaryExpression()
         {
             var token = nextToken();
-            Expression exp = null;
+            SyntaxNode exp = null;
             switch (token.Kind)
             {
                 case TokenKind.ID:
-                    exp = new Identifier(token.Text);
-                    _lexer.EatToken();
-                    return exp;
                 case TokenKind.NUM:
-                    exp = new Identifier(token.Text);
-                    _lexer.EatToken();
-                    return exp;
                 case TokenKind.STRING:
-                    exp = new Identifier(token.Text);
+                    exp = new SyntaxNode(token);
                     _lexer.EatToken();
                     return exp;
                 case TokenKind.OPEN_BRACKET:
@@ -71,9 +65,9 @@ namespace Parser
         // which is equivalent to
         // S => A S1
         // S1 => e | op S
-        private Func<Expression> genParserForBinOp(Func<Expression> parse, params TokenKind[] kinds)
+        private Func<SyntaxNode> genParserForBinOp(Func<SyntaxNode> parse, params TokenKind[] kinds)
         {
-            Func<Expression> gened = null;
+            Func<SyntaxNode> gened = null;
             gened = () => 
             {
                 var result = parse();
@@ -81,7 +75,7 @@ namespace Parser
                 if (Array.IndexOf(kinds, next.Kind) >= 0)
                 {
                     _lexer.EatToken();
-                    result = new Expression(next, result, gened());
+                    result = new SyntaxNode(next, result, gened());
                 }
                 return result;
             };
