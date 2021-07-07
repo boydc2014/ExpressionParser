@@ -27,18 +27,18 @@ namespace Parser
             parseExpression = genParserForBinOp(parseExpression, TokenKind.PLUS, TokenKind.MINUS);
 
             var exp = parseExpression();
-            if (_lexer.NextToken().Kind == TokenKind.EOF)
+            if (nextToken().Kind == TokenKind.EOF)
             {
                 return exp;
             }
-            throw new Exception($"Unable to parse all input, stop at {_lexer.NextToken().Kind}");
+            throw new Exception($"Unable to parse all input, stop at {nextToken().Kind}");
         }
 
         private Func<Expression> parseExpression = null;
 
         private Expression parsePrimaryExpression()
         {
-            var token = _lexer.NextToken();
+            var token = nextToken();
             Expression exp = null;
             switch (token.Kind)
             {
@@ -73,7 +73,7 @@ namespace Parser
             gened = () => 
             {
                 var result = parse();
-                var next = _lexer.NextToken();
+                var next = nextToken();
                 if (Array.IndexOf(kinds, next.Kind) >= 0)
                 {
                     _lexer.EatToken();
@@ -82,6 +82,18 @@ namespace Parser
                 return result;
             };
             return gened;
+        }
+
+        // Wrapper function on lexer's nextToken to support skip whitespace
+        private Token nextToken(bool skipWS = true)
+        {
+            var token = _lexer.NextToken();
+            while (token.Kind == TokenKind.WS && skipWS)
+            {
+                _lexer.EatToken();
+                token = _lexer.NextToken();
+            }
+            return token;
         }
     }
 }

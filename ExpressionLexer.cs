@@ -29,6 +29,7 @@ namespace Parser
             _lexerUnits[TokenKind.DIV] = (parseSingleChar('/'), "/");
             _lexerUnits[TokenKind.OPEN_BRACKET] = (parseSingleChar('('), "(");
             _lexerUnits[TokenKind.CLOSE_BRACKET] = (parseSingleChar(')'), ")");
+            _lexerUnits[TokenKind.WS] = (parseMultipleChars(" \t"), " \t");
 
             _lexerUnits[TokenKind.ID] = (parseRegexPattern(@"\G(_|@|#|\*|\$|@@)?[a-zA-Z][a-zA-Z0-9_]*"), "_$#@" + letters());
             _lexerUnits[TokenKind.NUM] = (parseRegexPattern(@"\G[0-9]+(\.[0-9]+)?"), digits());
@@ -135,8 +136,20 @@ namespace Parser
             {
                 if (_text[_index] == c)
                 {
-                    _index++;
-                    return c.ToString();
+                    return _text[_index++].ToString();
+                }
+                return null;
+            };
+        }
+
+        // Create a function that will look for a char in chars in current position
+        private Func<string> parseMultipleChars(string chars)
+        {
+            return () => 
+            {
+                if (chars.Contains(_text[_index]))
+                {
+                    return _text[_index++].ToString();
                 }
                 return null;
             };

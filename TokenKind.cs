@@ -7,6 +7,8 @@ namespace Parser
         NUM,
         STRING,
 
+        WS, // WhiteSpace
+
         PLUS,
         MINUS,
 
