@@ -30,6 +30,9 @@ namespace Parser
             _lexerUnits[TokenKind.OPEN_BRACKET] = (parseSingleChar('('), "(");
             _lexerUnits[TokenKind.CLOSE_BRACKET] = (parseSingleChar(')'), ")");
             _lexerUnits[TokenKind.WS] = (parseMultipleChars(" \t\r\n"), " \t\r\n");
+
+            // TODO: it's possible to create another abstract that map certain firsts to certain sub parser and construct
+            // an upper lever parser, so that we can split the pattern for ' and " to make it more efficent
             _lexerUnits[TokenKind.STRING] = (parseRegexPattern(@"\G(""([^""\\]|\\.)*"")|('([^'\\]|\\.)*')"), "'\"");
 
             _lexerUnits[TokenKind.ID] = (parseRegexPattern(@"\G(_|@|#|\*|\$|@@)?[a-zA-Z][a-zA-Z0-9_]*"), "_$#@" + letters());
