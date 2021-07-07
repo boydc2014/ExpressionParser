@@ -23,8 +23,8 @@ namespace Parser
         public SyntaxNode ParseExpression(string expression) 
         {
             _lexer = new ExpressionLexer(expression);
-            parseExpression = genParserForBinOp(parsePrimaryExpression, TokenKind.MUL, TokenKind.DIV);
-            parseExpression = genParserForBinOp(parseExpression, TokenKind.PLUS, TokenKind.MINUS);
+            parseExpression = genParserForBinOp(parsePrimaryExpression, new []{TokenKind.MUL, TokenKind.DIV});
+            parseExpression = genParserForBinOp(parseExpression, new []{TokenKind.PLUS, TokenKind.MINUS}, false);
 
             var exp = parseExpression();
             if (nextToken().Kind == TokenKind.EOF)
@@ -65,18 +65,35 @@ namespace Parser
         // which is equivalent to
         // S => A S1
         // S1 => e | op S
-        private Func<SyntaxNode> genParserForBinOp(Func<SyntaxNode> parse, params TokenKind[] kinds)
+        private Func<SyntaxNode> genParserForBinOp(Func<SyntaxNode> parse, TokenKind[] kinds, bool rightAssociate = true)
         {
             Func<SyntaxNode> gened = null;
             gened = () => 
             {
                 var result = parse();
-                var next = nextToken();
-                if (Array.IndexOf(kinds, next.Kind) >= 0)
+                
+                if (rightAssociate) 
                 {
-                    _lexer.EatToken();
-                    result = new SyntaxNode(next, result, gened());
+                    // right asscociate is simply, treat the whole right part as a whole
+                    if (Array.IndexOf(kinds, nextToken().Kind) >= 0)
+                    {
+                        var op = nextToken();
+                        _lexer.EatToken();
+                        result = new SyntaxNode(op, result, gened());
+                    }
                 }
+                else 
+                {
+                    // left asscoicate will contruct the expression as soon as possible
+                    while (Array.IndexOf(kinds, nextToken().Kind) >= 0)
+                    {
+                        var op = nextToken();
+                        _lexer.EatToken();
+                        var nextPart = parse();
+                        result = new SyntaxNode(op, result, nextPart);
+                    }
+                }
+
                 return result;
             };
             return gened;
