@@ -1,11 +1,14 @@
 using System;
+using System.Collections.Generic;
 
 namespace Parser
 {
     /*
     Grammar：
     
-    primaryExpression:= ID | NUM | STRING | '(' expression ')'
+    primaryExpression := ID | NUM | STRING | '(' expression ')'
+
+    postfixExpression := primaryExpression ( (argList?) | [expression] | .ID ) *
 
     multiplicativeExpression := primaryExpression (*|/ primaryExpression)*
 
@@ -23,7 +26,8 @@ namespace Parser
         public SyntaxNode ParseExpression(string expression) 
         {
             _lexer = new ExpressionLexer(expression);
-            parseExpression = genParserForBinOp(parsePrimaryExpression, new []{TokenKind.MUL, TokenKind.DIV});
+
+            parseExpression = genParserForBinOp(parsePostfixExpression, new []{TokenKind.MUL, TokenKind.DIV});
             parseExpression = genParserForBinOp(parseExpression, new []{TokenKind.PLUS, TokenKind.MINUS}, false);
 
             var exp = parseExpression();
@@ -36,6 +40,31 @@ namespace Parser
 
         private Func<SyntaxNode> parseExpression = null;
 
+        private SyntaxNode parsePostfixExpression()
+        {
+            var result = parsePrimaryExpression();
+            if (nextToken().Kind == TokenKind.OPEN_BRACKET)
+            {
+                var op = eatToken();
+                var argList = new List<SyntaxNode>() { result };
+
+                if (nextToken().Kind != TokenKind.CLOSE_BRACKET)
+                {
+                    var arg0 = parseExpression();
+                    argList.Add(arg0);
+                    while (nextToken().Kind == TokenKind.COMMA)
+                    {
+                        eatToken();
+                        var argN = parseExpression();
+                        argList.Add(argN);
+                    }
+                }
+                eatToken(TokenKind.CLOSE_BRACKET);
+                return new SyntaxNode(op, argList.ToArray());
+            }
+            return result;
+        }
+
         private SyntaxNode parsePrimaryExpression()
         {
             var token = nextToken();
@@ -46,12 +75,12 @@ namespace Parser
                 case TokenKind.NUM:
                 case TokenKind.STRING:
                     exp = new SyntaxNode(token);
-                    _lexer.EatToken();
+                    eatToken();
                     return exp;
                 case TokenKind.OPEN_BRACKET:
-                    _lexer.EatToken();
+                    eatToken();
                     exp = parseExpression();
-                    _lexer.EatToken(TokenKind.CLOSE_BRACKET);
+                    eatToken(TokenKind.CLOSE_BRACKET);
                     return exp;
                 default:
                     throw new Exception($"Unexpected token {token.Kind}, expecting {TokenKind.ID}, {TokenKind.NUM} or {TokenKind.OPEN_BRACKET}");
@@ -78,7 +107,7 @@ namespace Parser
                     if (Array.IndexOf(kinds, nextToken().Kind) >= 0)
                     {
                         var op = nextToken();
-                        _lexer.EatToken();
+                        eatToken();
                         result = new SyntaxNode(op, result, gened());
                     }
                 }
@@ -88,7 +117,7 @@ namespace Parser
                     while (Array.IndexOf(kinds, nextToken().Kind) >= 0)
                     {
                         var op = nextToken();
-                        _lexer.EatToken();
+                        eatToken();
                         var nextPart = parse();
                         result = new SyntaxNode(op, result, nextPart);
                     }
@@ -104,9 +133,14 @@ namespace Parser
         {
             while (_lexer.NextToken().Kind == TokenKind.WS && skipWS)
             {
-                _lexer.EatToken();
+                eatToken();
             }
             return _lexer.NextToken();
+        }
+
+        private Token eatToken(TokenKind kind = TokenKind.NONE)
+        {
+            return _lexer.EatToken(kind);
         }
     }
 }

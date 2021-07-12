@@ -23,12 +23,16 @@ namespace Parser
         {
             _text = text;
 
-            _lexerUnits[TokenKind.PLUS] = (parseSingleChar('+'), "+");
-            _lexerUnits[TokenKind.MINUS] = (parseSingleChar('-'), "-");
-            _lexerUnits[TokenKind.MUL] = (parseSingleChar('*'), "*");
-            _lexerUnits[TokenKind.DIV] = (parseSingleChar('/'), "/");
-            _lexerUnits[TokenKind.OPEN_BRACKET] = (parseSingleChar('('), "(");
-            _lexerUnits[TokenKind.CLOSE_BRACKET] = (parseSingleChar(')'), ")");
+            _lexerUnits[TokenKind.PLUS] = parseSingleChar('+');
+            _lexerUnits[TokenKind.MINUS] = parseSingleChar('-');
+            _lexerUnits[TokenKind.MUL] = parseSingleChar('*');
+            _lexerUnits[TokenKind.DIV] = parseSingleChar('/');
+            _lexerUnits[TokenKind.OPEN_BRACKET] = parseSingleChar('(');
+            _lexerUnits[TokenKind.CLOSE_BRACKET] = parseSingleChar(')');
+            _lexerUnits[TokenKind.OPEN_SQUARE_BRACKET] = parseSingleChar('[');
+            _lexerUnits[TokenKind.CLOSE_SQUARE_BRACKET] = parseSingleChar(']');
+            _lexerUnits[TokenKind.DOT] = parseSingleChar('.');            
+            _lexerUnits[TokenKind.COMMA] = parseSingleChar(',');
             _lexerUnits[TokenKind.WS] = (parseMultipleChars(" \t\r\n"), " \t\r\n");
 
             // TODO: it's possible to create another abstract that map certain firsts to certain sub parser and construct
@@ -55,15 +59,18 @@ namespace Parser
             _curToken = token;
             return token;
         }
-        public void EatToken(TokenKind kind = TokenKind.NONE)
+        public Token EatToken(TokenKind kind = TokenKind.NONE)
         {
-            if (kind != TokenKind.NONE && NextToken().Kind != kind)
+            var cur = NextToken();
+
+            if (kind != TokenKind.NONE && cur.Kind != kind)
             {
                 throw new System.Exception($"Unexpected token {NextToken().Kind}, expecting {kind}");
             }
 
             // Reset cur token
             _curToken = null;
+            return cur;
         }
 
         // Actual execution of finding the next token and return
@@ -133,17 +140,17 @@ namespace Parser
             };
         }
 
-        // Create a function that will look for a specific char in current position
-        private Func<string> parseSingleChar(char c)
+        // Create a function and it's firsts that will look for a specific char in current position
+        private (Func<string>, string) parseSingleChar(char c)
         {
-            return () =>
+            return (() =>
             {
                 if (_text[_index] == c)
                 {
                     return _text[_index++].ToString();
                 }
                 return null;
-            };
+            }, c.ToString());
         }
 
         // Create a function that will look for a char in chars in current position

@@ -23,6 +23,9 @@ namespace Parser
         static void Main(string[] args)
         {
             string[] expressions = {
+                "1 + exp(2, 3)",
+                "a + div(3)",
+                "add(1, 2)",
                 "\"hel lo\" + 'world'",
                 "'hello' + 'world'",
                 "_test + 5.5",
