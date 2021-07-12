@@ -43,24 +43,42 @@ namespace Parser
         private SyntaxNode parsePostfixExpression()
         {
             var result = parsePrimaryExpression();
-            if (nextToken().Kind == TokenKind.OPEN_BRACKET)
+            var t = nextToken();
+            while (t.Kind == TokenKind.OPEN_BRACKET || 
+                   t.Kind == TokenKind.DOT ||
+                   t.Kind == TokenKind.OPEN_SQUARE_BRACKET)
             {
                 var op = eatToken();
-                var argList = new List<SyntaxNode>() { result };
-
-                if (nextToken().Kind != TokenKind.CLOSE_BRACKET)
+                if (op.Kind == TokenKind.OPEN_BRACKET)
                 {
-                    var arg0 = parseExpression();
-                    argList.Add(arg0);
-                    while (nextToken().Kind == TokenKind.COMMA)
+                    var argList = new List<SyntaxNode>() { result };
+                    if (nextToken().Kind != TokenKind.CLOSE_BRACKET)
                     {
-                        eatToken();
-                        var argN = parseExpression();
-                        argList.Add(argN);
+                        var arg0 = parseExpression();
+                        argList.Add(arg0);
+                        while (nextToken().Kind == TokenKind.COMMA)
+                        {
+                            eatToken();
+                            var argN = parseExpression();
+                            argList.Add(argN);
+                        }
                     }
+                    eatToken(TokenKind.CLOSE_BRACKET);
+                    result = new SyntaxNode(op, argList.ToArray());
                 }
-                eatToken(TokenKind.CLOSE_BRACKET);
-                return new SyntaxNode(op, argList.ToArray());
+                else if (op.Kind == TokenKind.DOT)
+                {
+                    var property = eatToken(TokenKind.ID);
+                    result = new SyntaxNode(op, result, new SyntaxNode(property));
+                }
+                else
+                {
+                    var index = parseExpression();
+                    eatToken(TokenKind.CLOSE_SQUARE_BRACKET);
+                    result = new SyntaxNode(op, result, index);
+                }   
+                
+                t = nextToken();
             }
             return result;
         }

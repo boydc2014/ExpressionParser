@@ -23,8 +23,10 @@ namespace Parser
         static void Main(string[] args)
         {
             string[] expressions = {
+                "fun[a+2](a).b.c + c",
+                "func(2).a.b + 3",
                 "1 + exp(2, 3)",
-                "a + div(3)",
+                "a + div(3 + 2",
                 "add(1, 2)",
                 "\"hel lo\" + 'world'",
                 "'hello' + 'world'",
