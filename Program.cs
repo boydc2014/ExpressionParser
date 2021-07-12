@@ -23,6 +23,7 @@ namespace Parser
         static void Main(string[] args)
         {
             string[] expressions = {
+                "a != b^2",
                 "fun[a+2](a).b.c + c",
                 "func(2).a.b + 3",
                 "1 + exp(2, 3)",

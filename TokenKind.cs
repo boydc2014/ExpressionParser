@@ -14,7 +14,26 @@ namespace Parser
 
         MUL,
         DIV,
+        PERCENT,
 
+        DOUBLE_EQUAL,
+        NOT_EQUAL,
+
+        SINGLE_AND,
+        NOT,
+        XOR,
+
+        LESS_THAN,
+        LESS_OR_EQUAl,
+        MORE_THAN,
+        MORE_OR_EQUAL,
+
+        DOUBLE_AND,
+        DOUBLE_VERTICAL_LINE,
+
+        NULL_COALESCE,
+        QUESTION_MARK,
+        COLON,
         OPEN_BRACKET,
         CLOSE_BRACKET,
 

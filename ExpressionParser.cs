@@ -10,9 +10,9 @@ namespace Parser
 
     postfixExpression := primaryExpression ( (argList?) | [expression] | .ID ) *
 
-    multiplicativeExpression := primaryExpression (*|/ primaryExpression)*
+    multiplicativeExpression := primaryExpression (*|/|% primaryExpression)*
 
-    expression:= multiplicativeExpression (+|- multiplicativeExpression)*                     
+    addtiveExpression := multiplicativeExpression (+|- multiplicativeExpression)*                     
 
     */
     class ExpressionParser 
@@ -27,8 +27,16 @@ namespace Parser
         {
             _lexer = new ExpressionLexer(expression);
 
-            parseExpression = genParserForBinOp(parsePostfixExpression, new []{TokenKind.MUL, TokenKind.DIV});
-            parseExpression = genParserForBinOp(parseExpression, new []{TokenKind.PLUS, TokenKind.MINUS}, false);
+            parseExpression = genParserForBinOp(parsePostfixExpression, new []{TokenKind.XOR}, true);
+            // binary ops
+            parseExpression = genParserForBinOp(parseExpression, new []{TokenKind.MUL, TokenKind.DIV, TokenKind.PERCENT});
+            parseExpression = genParserForBinOp(parseExpression, new []{TokenKind.PLUS, TokenKind.MINUS});
+            parseExpression = genParserForBinOp(parseExpression, new []{TokenKind.DOUBLE_EQUAL, TokenKind.NOT_EQUAL});
+            parseExpression = genParserForBinOp(parseExpression, new []{TokenKind.SINGLE_AND});
+            parseExpression = genParserForBinOp(parseExpression, new []{TokenKind.LESS_THAN, TokenKind.LESS_OR_EQUAl, TokenKind.MORE_THAN, TokenKind.MORE_OR_EQUAL});
+            parseExpression = genParserForBinOp(parseExpression, new []{TokenKind.DOUBLE_AND});
+            parseExpression = genParserForBinOp(parseExpression, new []{TokenKind.DOUBLE_VERTICAL_LINE});
+            parseExpression = genParserForBinOp(parseExpression, new []{TokenKind.NULL_COALESCE});
 
             var exp = parseExpression();
             if (nextToken().Kind == TokenKind.EOF)
@@ -77,7 +85,7 @@ namespace Parser
                     eatToken(TokenKind.CLOSE_SQUARE_BRACKET);
                     result = new SyntaxNode(op, result, index);
                 }   
-                
+
                 t = nextToken();
             }
             return result;
@@ -112,7 +120,7 @@ namespace Parser
         // which is equivalent to
         // S => A S1
         // S1 => e | op S
-        private Func<SyntaxNode> genParserForBinOp(Func<SyntaxNode> parse, TokenKind[] kinds, bool rightAssociate = true)
+        private Func<SyntaxNode> genParserForBinOp(Func<SyntaxNode> parse, TokenKind[] kinds, bool rightAssociate = false)
         {
             Func<SyntaxNode> gened = null;
             gened = () => 

@@ -23,17 +23,32 @@ namespace Parser
         {
             _text = text;
 
+            _lexerUnits[TokenKind.NOT] = parseSingleChar('!');
             _lexerUnits[TokenKind.PLUS] = parseSingleChar('+');
             _lexerUnits[TokenKind.MINUS] = parseSingleChar('-');
             _lexerUnits[TokenKind.MUL] = parseSingleChar('*');
             _lexerUnits[TokenKind.DIV] = parseSingleChar('/');
+            _lexerUnits[TokenKind.DIV] = parseSingleChar('%');
+            _lexerUnits[TokenKind.DOUBLE_EQUAL] = parseAllChars("==");
+            _lexerUnits[TokenKind.NOT_EQUAL] = parseAllChars("!=");
+            _lexerUnits[TokenKind.SINGLE_AND] = parseSingleChar('&');
+            _lexerUnits[TokenKind.LESS_THAN] = parseSingleChar('<');
+            _lexerUnits[TokenKind.LESS_OR_EQUAl] = parseAllChars("<=");
+            _lexerUnits[TokenKind.MORE_THAN] = parseSingleChar('>');
+            _lexerUnits[TokenKind.MORE_OR_EQUAL] = parseAllChars(">=");
+            _lexerUnits[TokenKind.DOUBLE_AND] = parseAllChars("&&");
+            _lexerUnits[TokenKind.DOUBLE_VERTICAL_LINE] = parseAllChars("||");
+            _lexerUnits[TokenKind.NULL_COALESCE] = parseAllChars("??");
+            _lexerUnits[TokenKind.QUESTION_MARK] = parseSingleChar('?');
+            _lexerUnits[TokenKind.COLON] = parseSingleChar(':');
+            _lexerUnits[TokenKind.XOR] = parseSingleChar('^');
             _lexerUnits[TokenKind.OPEN_BRACKET] = parseSingleChar('(');
             _lexerUnits[TokenKind.CLOSE_BRACKET] = parseSingleChar(')');
             _lexerUnits[TokenKind.OPEN_SQUARE_BRACKET] = parseSingleChar('[');
             _lexerUnits[TokenKind.CLOSE_SQUARE_BRACKET] = parseSingleChar(']');
             _lexerUnits[TokenKind.DOT] = parseSingleChar('.');            
             _lexerUnits[TokenKind.COMMA] = parseSingleChar(',');
-            _lexerUnits[TokenKind.WS] = (parseMultipleChars(" \t\r\n"), " \t\r\n");
+            _lexerUnits[TokenKind.WS] = parseAnyChar(" \t\r\n");
 
             // TODO: it's possible to create another abstract that map certain firsts to certain sub parser and construct
             // an upper lever parser, so that we can split the pattern for ' and " to make it more efficent
@@ -97,6 +112,7 @@ namespace Parser
                     }
                     if (result.Kind != TokenKind.EOF)
                     {
+                        _index += result.Text.Length;
                         return result;
                     }
                 }
@@ -147,23 +163,32 @@ namespace Parser
             {
                 if (_text[_index] == c)
                 {
-                    return _text[_index++].ToString();
+                    return _text[_index].ToString();
                 }
                 return null;
             }, c.ToString());
         }
 
         // Create a function that will look for a char in chars in current position
-        private Func<string> parseMultipleChars(string chars)
+        private (Func<string>, string) parseAnyChar(string chars)
         {
-            return () => 
+            return (() => 
             {
                 if (chars.Contains(_text[_index]))
                 {
-                    return _text[_index++].ToString();
+                    return _text[_index].ToString();
                 }
                 return null;
-            };
+            }, chars);
+        }
+
+        private (Func<string>, string) parseAllChars(string chars)
+        {
+            return (() => 
+            {   
+                var subStr = _text.Substring(_index, chars.Length);
+                return subStr == chars ? subStr : null;
+            }, chars[0].ToString());
         }
 
 
@@ -174,13 +199,7 @@ namespace Parser
             {
                 var reg = new Regex(pattern);
                 var match = reg.Match(_text, _index);
-
-                if (match.Success)
-                {
-                    _index = _index + match.Length;
-                    return _text.Substring(_index-match.Length, match.Length);
-                }
-                return null;
+                return reg.Match(_text, _index).Success ? _text.Substring(_index, match.Length) : null;
             };
         }
 
