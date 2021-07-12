@@ -28,6 +28,7 @@ namespace Parser
             _lexer = new ExpressionLexer(expression);
 
             parseExpression = genParserForBinOp(parsePostfixExpression, new []{TokenKind.XOR}, true);
+            parseExpression = genParserForUniOp(parseExpression, new []{TokenKind.NOT, TokenKind.PLUS, TokenKind.MINUS});
             // binary ops
             parseExpression = genParserForBinOp(parseExpression, new []{TokenKind.MUL, TokenKind.DIV, TokenKind.PERCENT});
             parseExpression = genParserForBinOp(parseExpression, new []{TokenKind.PLUS, TokenKind.MINUS});
@@ -150,6 +151,23 @@ namespace Parser
                 }
 
                 return result;
+            };
+            return gened;
+        }
+
+        private Func<SyntaxNode> genParserForUniOp(Func<SyntaxNode> parse, TokenKind[] kinds)
+        {
+            Func<SyntaxNode> gened = null;
+            gened = () => 
+            {
+                var t = nextToken();
+                if (Array.IndexOf(kinds, t.Kind) >= 0)
+                {
+                    eatToken();
+                    var result = gened();
+                    return new SyntaxNode(t, result);
+                }
+                return parse();
             };
             return gened;
         }

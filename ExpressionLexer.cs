@@ -205,7 +205,7 @@ namespace Parser
 
         private string letters()
         {
-            return "abcdefjhijklmnopqrstuvwxyzABCEDEFHIJKLMNOPQRSTUVWXYZ";
+            return "abcdefghijklmnopqrstuvwxyzABCEDEFGHIJKLMNOPQRSTUVWXYZ";
         }
 
         private string digits()
