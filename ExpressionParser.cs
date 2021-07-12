@@ -52,7 +52,7 @@ namespace Parser
         private SyntaxNode parsePostfixExpression()
         {
             var result = parsePrimaryExpression();
-            var t = nextToken();
+            var t = nextToken(false);   // We can't allow white space in postfix expression
             while (t.Kind == TokenKind.OPEN_BRACKET || 
                    t.Kind == TokenKind.DOT ||
                    t.Kind == TokenKind.OPEN_SQUARE_BRACKET)
@@ -63,14 +63,8 @@ namespace Parser
                     var argList = new List<SyntaxNode>() { result };
                     if (nextToken().Kind != TokenKind.CLOSE_BRACKET)
                     {
-                        var arg0 = parseExpression();
-                        argList.Add(arg0);
-                        while (nextToken().Kind == TokenKind.COMMA)
-                        {
-                            eatToken();
-                            var argN = parseExpression();
-                            argList.Add(argN);
-                        }
+                        var args = parseOneOrMore(parseExpression, TokenKind.COMMA);
+                        argList.AddRange(args);
                     }
                     eatToken(TokenKind.CLOSE_BRACKET);
                     result = new SyntaxNode(op, argList.ToArray());
@@ -87,7 +81,7 @@ namespace Parser
                     result = new SyntaxNode(op, result, index);
                 }   
 
-                t = nextToken();
+                t = nextToken(false);  
             }
             return result;
         }
@@ -109,6 +103,18 @@ namespace Parser
                     exp = parseExpression();
                     eatToken(TokenKind.CLOSE_BRACKET);
                     return exp;
+                case TokenKind.OPEN_SQUARE_BRACKET:
+                    var op = eatToken();
+                    var result = new SyntaxNode(op);
+                    var children = new List<SyntaxNode>(){null};
+                    if (nextToken().Kind != TokenKind.CLOSE_SQUARE_BRACKET)
+                    {
+                        var parts = parseOneOrMore(parseExpression, TokenKind.COMMA);
+                        children.AddRange(parts);
+                    }
+                    result.Children = children.ToArray();
+                    eatToken(TokenKind.CLOSE_SQUARE_BRACKET);
+                    return result;
                 default:
                     throw new Exception($"Unexpected token {token.Kind}, expecting {TokenKind.ID}, {TokenKind.NUM} or {TokenKind.OPEN_BRACKET}");
             }
@@ -170,6 +176,20 @@ namespace Parser
                 return parse();
             };
             return gened;
+        }
+
+        private List<SyntaxNode> parseOneOrMore(Func<SyntaxNode> parse, TokenKind seperator)
+        {
+            var result = new List<SyntaxNode>(){};
+            for(;;) {
+                result.Add(parse());
+                if (nextToken().Kind != seperator)
+                {
+                    break;
+                }
+                eatToken();
+            }
+            return result;
         }
 
         // Wrapper function on lexer's NextToken() to support skip whitespace

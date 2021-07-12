@@ -23,6 +23,7 @@ namespace Parser
         static void Main(string[] args)
         {
             string[] expressions = {
+                "[1, 2].length + [].length",
                 "a + +b",
                 "f.g(x) != f(g(x))",
                 "!!!!a.b != 0",
