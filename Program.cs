@@ -46,14 +46,34 @@ namespace Parser
                 "(1/2"
             };
 
-            TestParser(expressions);
+            TestPureParser(expressions);
+            //TestParser(expressions);
             //TestLexer(expressions);
         }
-        
+
         static void printToken(Token t)
         {
             Console.WriteLine($"  <{(t.Kind)}/{t.Text}>");
         }
+
+        static void TestPureParser(string[] expressions)
+        {
+            var parser = new Parser();
+            foreach (var e in expressions)
+            {
+                Console.WriteLine(e);
+                var result = parser.Parse(e);
+                if (result.IsSuccess)
+                {
+                    Console.WriteLine(result.Value);
+                }
+                else
+                {
+                    Console.WriteLine(result.ErrorMessage);
+                }
+            }
+        }
+
 
         static void TestParser(string[] expressions)
         {
