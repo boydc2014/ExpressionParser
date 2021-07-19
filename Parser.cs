@@ -216,7 +216,7 @@ namespace Parser
         public ParserResult<SyntaxNode> Parse(string input)
         {
             var inputReader = new InputReader(input);
-            var parseID = Select(Seq(Opt(AnyChar("_#$@%"), string.Empty),
+            var parseID = Select(Seq(Opt(Or(PString("@@"), AnyChar("_#$@%")), string.Empty),
                                      AnyChar(letters()),
                                      Select(Many(AnyChar(letters() + digits() + "_")), strs => string.Join("", strs))),
                                  strs => string.Join("", strs));

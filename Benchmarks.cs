@@ -15,6 +15,8 @@ namespace Parser
             "__"
         };
 
+        private Regex creg = new Regex(@"\G(_|@|#|\*|\$|@@)?[a-zA-Z][a-zA-Z0-9_]*", RegexOptions.Compiled);
+
         [Benchmark]        
         public void TestDirectParser()
         {
@@ -49,6 +51,15 @@ namespace Parser
             {
                 var reg = new Regex(@"\G(_|@|#|\*|\$|@@)?[a-zA-Z][a-zA-Z0-9_]*");
                 reg.Match(e);
+            }
+        }
+
+        [Benchmark]
+        public void TestCompiledRegex()
+        {
+            foreach (var e in expressions)
+            {
+                creg.Match(e);
             }
         }
     }
