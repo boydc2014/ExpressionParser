@@ -1,4 +1,5 @@
 ﻿using System;
+using BenchmarkDotNet.Running;
 
 /*
 The grammer
@@ -46,9 +47,22 @@ namespace Parser
                 "(1/2"
             };
 
-            TestPureParser(expressions);
+            string[] ids = {
+                "_1",
+                "1a",
+                "a1",
+                "@@a",
+                "__",
+                "a",
+                "_a",
+                "$b",
+                "_a1"
+            };
+
+            //TestPureParser(ids);
             //TestParser(expressions);
             //TestLexer(expressions);
+            BenchmarkRunner.Run<Benchmarks>();
         }
 
         static void printToken(Token t)
