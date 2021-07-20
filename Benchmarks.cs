@@ -5,14 +5,24 @@ namespace Parser
 {
     public class Benchmarks
     {
-        private string[] expressions = {
+        public static string[] expressions = {
             "_abcd",
             "hello",
             "a1",
             "1a",
             "a1234",
             "$myHello",
-            "__"
+            "__",
+            "123",
+            ".123",
+            "456.",
+            "456.1234",
+            "0.123456",
+            "\"abc\"",
+            "'abc'",
+            "\"abc\\\"abc\"",
+            "'\'\'\'\'\'\'\''",
+            "\"hello world '' \""
         };
 
         private Regex creg = new Regex(@"\G(_|@|#|\*|\$|@@)?[a-zA-Z][a-zA-Z0-9_]*", RegexOptions.Compiled);

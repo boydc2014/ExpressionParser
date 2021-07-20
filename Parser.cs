@@ -7,7 +7,7 @@ namespace Parser
 {
     class Parser 
     {
-        class InputReader 
+        public class InputReader 
         {
             private string _input;
             private int _offset;
@@ -70,20 +70,55 @@ namespace Parser
 
         public Parser()
         {
-               
+            var ID = Concat(Opt(Or(All("@@"), Str(Any("_#$@%")))), Str(Any(Letter())), Many(Any(Letter() + Digit() + "_")));
+            
+            var manyDigits = Many1(Any(Digit()));
+            var NUM = Concat(manyDigits, Opt(Concat(Str(Char('.')), manyDigits)));
+
+            var escapeChar = Concat(Str(Char('\\')), Str(Not(""))); 
+
+            var stringLiteral1 = Concat(Str(Char('"')), Concat(Many(Or(Many1(Not("\\\"")), escapeChar))), Str(Char('"')));
+            var stringLiteral2 = Concat(Str(Char('\'')), Concat(Many(Or(Many1(Not("\\'")), escapeChar))), Str(Char('\'')));
+            var stringLiteral = Or(stringLiteral1, stringLiteral2);
+
+            var parseID = Tokenize(ID, TokenKind.ID);
+            var parseNUM = Tokenize(NUM, TokenKind.NUM);
+            var parseSTRING = Tokenize(stringLiteral, TokenKind.STRING);
+
+            parseStringLiteral2 = Tokenize(stringLiteral1, TokenKind.NUM);
+            parseExpression = Or(parseID, parseNUM, parseSTRING);
+        }
+
+
+        private Func<InputReader, ParserResult<char>> Any() 
+        {
+            return (input) => 
+            {
+                if (input.EOF())
+                {
+                    return ParserResult<char>.Failure($"Unexpected end of file");
+                }
+                var ch = input.Read();
+                return ParserResult<char>.Success(ch);                
+            };
+        }
+
+        private Func<InputReader, ParserResult<T>> Where<T>(Func<InputReader, ParserResult<T>> parser, Func<T, bool> predicate)
+        {
+            return (input) =>
+            {
+                var result = parser(input);
+                if (!result.IsSuccess || !predicate(result.Value))
+                {
+                    return ParserResult<T>.Failure(result.ErrorMessage + " or condition is not meet");
+                }
+                return ParserResult<T>.Success(result.Value);
+            };
         }
 
         private Func<InputReader, ParserResult<char>> Char(char c) 
         {
-            return (input) => 
-            {
-                var ch = input.Read();
-                if (ch == c)
-                {
-                    return ParserResult<char>.Success(c);
-                }
-                return ParserResult<char>.Failure($"Unexpected input, expecting {c}, actual {ch}");
-            };
+            return Where(Any(), ch => ch == c);
         }
 
         private Func<InputReader, ParserResult<string>> All(string str)
@@ -102,17 +137,14 @@ namespace Parser
             };
         }
 
+        private Func<InputReader, ParserResult<char>> Not(string str) 
+        {
+            return Where(Any(), c => !str.Contains(c));
+        }
+
         private Func<InputReader, ParserResult<char>> Any(string str) 
         {
-            return (input) => 
-            {
-                var ch = input.Read();
-                if (str.Contains(ch))
-                {
-                    return ParserResult<char>.Success(ch);
-                }
-                return ParserResult<char>.Failure($"Unexpected input, expecting any char in {str}, actual {ch}");
-            };
+            return Where(Any(), c => str.Contains(c));
         }
 
         private Func<InputReader, ParserResult<string>> Str<T>(Func<InputReader, ParserResult<T>> parser)
@@ -294,6 +326,17 @@ namespace Parser
             return Aggregate(parsers, (x, y) => x + y);
         }
 
+        private Func<InputReader, ParserResult<string>> Concat(Func<InputReader, ParserResult<IEnumerable<string>>> parser)
+        {
+            return Select<IEnumerable<string>, string>(parser, x => x.Aggregate(string.Empty, (a, b) => a + b));
+        }
+
+
+        private Func<InputReader, ParserResult<SyntaxNode>> Tokenize(Func<InputReader, ParserResult<string>> parser, TokenKind kind)
+        {
+            return Select(parser, str => new SyntaxNode(new Token(kind, str)));
+        }
+
         private string ConcatStrs(IEnumerable<string> strs)
         {
             return string.Join("", strs);
@@ -302,13 +345,6 @@ namespace Parser
         public ParserResult<SyntaxNode> Parse(string input)
         {
             var inputReader = new InputReader(input);
-            var ID = Concat(Opt(Or(All("@@"), Str(Any("_#$@%")))), Str(Any(Letter())), Many(Any(Letter() + Digit() + "_")));
-            
-            var manyDigits = Many1(Any(Digit()));
-            var NUM = Concat(manyDigits, Opt(Concat(Str(Char('.')), manyDigits)));
-            
-            parseExpression = Select(ID, id => new SyntaxNode(new Token(TokenKind.ID, id)));
-
             return parseExpression(inputReader);
         }
 
@@ -322,5 +358,6 @@ namespace Parser
             return "0123456789";
         }
         private Func<InputReader, ParserResult<SyntaxNode>> parseExpression;
+        public Func<InputReader, ParserResult<SyntaxNode>> parseStringLiteral2;
     }
 }
