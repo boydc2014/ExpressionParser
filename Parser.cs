@@ -86,9 +86,19 @@ namespace Parser
             var parseSTRING = Tokenize(stringLiteral, TokenKind.STRING);
 
             parseStringLiteral2 = Tokenize(stringLiteral1, TokenKind.NUM);
-            parseExpression = Or(parseID, parseNUM, parseSTRING);
+
+            var parsePrimaryExpression = Between(Or(parseID, parseNUM, parseSTRING), Many(Any(Space())));
+
+            parseExpression = ChainL(parsePrimaryExpression, BinaryOps("+", "-"));
         }
 
+        private Func<InputReader, ParserResult<Func<SyntaxNode, SyntaxNode, SyntaxNode>>> BinaryOps(params string[] opStr)
+        {
+            var opParsers = opStr.Select(x => All(x)).ToArray();
+            return Select<string, Func<SyntaxNode, SyntaxNode, SyntaxNode>>(Between(Or(opParsers), Many(Any(Space()))), _ => 
+                (left, right) => new SyntaxNode(new Token(TokenKind.PLUS, "+"), left, right)
+            );
+        }
 
         private Func<InputReader, ParserResult<char>> Any() 
         {
@@ -332,6 +342,98 @@ namespace Parser
         }
 
 
+        private Func<InputReader, ParserResult<T>> Between<T, U>(Func<InputReader, ParserResult<T>> parser, Func<InputReader, ParserResult<U>> sep)
+        {
+            return After(Before(sep, parser), sep);
+        }
+        private Func<InputReader, ParserResult<U>> Before<T, U>(Func<InputReader, ParserResult<T>> parser1, Func<InputReader, ParserResult<U>> parser2)
+        {
+            return (input) => 
+            {
+                var result1 = parser1(input);
+                if (!result1.IsSuccess)
+                {
+                    return ParserResult<U>.Failure(result1.ErrorMessage);
+                }
+                return parser2(input);
+            };
+        }
+
+        private Func<InputReader, ParserResult<T>> After<T, U>(Func<InputReader, ParserResult<T>> parser1, Func<InputReader, ParserResult<U>> parser2)
+        {
+            return (input) => 
+            {
+                var result1 = parser1(input);
+                if (!result1.IsSuccess)
+                {
+                    return ParserResult<T>.Failure(result1.ErrorMessage);
+                }
+
+                var result2 = parser2(input);
+                if (!result2.IsSuccess)
+                {
+                    return ParserResult<T>.Failure(result2.ErrorMessage);
+                }
+                return result1;
+            };
+        }
+        
+        private Func<InputReader, ParserResult<T>> ChainL<T>(Func<InputReader, ParserResult<T>> parser, Func<InputReader, ParserResult<Func<T, T, T>>> op)
+        {
+            return (input) => 
+            {
+                var result = parser(input);
+                if (!result.IsSuccess)
+                {
+                    return ParserResult<T>.Failure(result.ErrorMessage);
+                }
+                
+                while (true)
+                {
+                    var opResult = Try(op)(input);
+                    if (!opResult.IsSuccess)
+                    {
+                        break;
+                    }
+                    var result2 = parser(input);
+                    if (!result2.IsSuccess)
+                    {
+                        return ParserResult<T>.Failure(result2.ErrorMessage);
+                    }
+                    result.Value = opResult.Value(result.Value, result2.Value);
+                }
+                return result;
+            };
+        }
+
+       private Func<InputReader, ParserResult<T>> ChainR<T>(Func<InputReader, ParserResult<T>> parser, Func<InputReader, ParserResult<Func<T, T, T>>> op)
+        {
+            Func<InputReader, ParserResult<T>> right = null;
+
+            right = (input) => 
+            {
+                var result = parser(input);
+                if (!result.IsSuccess)
+                {
+                    return ParserResult<T>.Failure(result.ErrorMessage);
+                }
+                
+                var opResult = Try(op)(input);
+                if (opResult.IsSuccess)
+                {
+                    var rightResult = right(input);
+                    if (!rightResult.IsSuccess)
+                    {
+                        return ParserResult<T>.Failure(rightResult.ErrorMessage);
+                    }
+                    result.Value = opResult.Value(result.Value, rightResult.Value);
+                }
+                return result;
+            };
+
+            return right;
+        }
+
         private Func<InputReader, ParserResult<SyntaxNode>> Tokenize(Func<InputReader, ParserResult<string>> parser, TokenKind kind)
         {
             return Select(parser, str => new SyntaxNode(new Token(kind, str)));
@@ -356,6 +458,11 @@ namespace Parser
         private string Digit()
         {
             return "0123456789";
+        }
+
+        private string Space()
+        {
+            return " \t\r\n";
         }
         private Func<InputReader, ParserResult<SyntaxNode>> parseExpression;
         public Func<InputReader, ParserResult<SyntaxNode>> parseStringLiteral2;

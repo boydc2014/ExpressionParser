@@ -198,6 +198,7 @@ namespace Parser
             return () => 
             {
                 var reg = new Regex(pattern);
+
                 var match = reg.Match(_text, _index);
                 return reg.Match(_text, _index).Success ? _text.Substring(_index, match.Length) : null;
             };
