@@ -2,6 +2,7 @@ using System;
 using System.Text;
 using System.Linq;
 using System.Collections.Generic;
+using Parser.AST;
 
 namespace Parser
 {
@@ -81,11 +82,11 @@ namespace Parser
             var stringLiteral2 = Concat(Str(Char('\'')), Concat(Many(Or(Many1(Not("\\'")), escapeChar))), Str(Char('\'')));
             var stringLiteral = Or(stringLiteral1, stringLiteral2);
 
-            var parseID = Tokenize(ID, TokenKind.ID);
-            var parseNUM = Tokenize(NUM, TokenKind.NUM);
-            var parseSTRING = Tokenize(stringLiteral, TokenKind.STRING);
+            var parseID = Terminal(ID, SyntaxKind.IdentiferToken);
+            var parseNUM = Terminal(NUM, SyntaxKind.NumToken);
+            var parseSTRING = Terminal(stringLiteral, SyntaxKind.StringToken);
 
-            parseStringLiteral2 = Tokenize(stringLiteral1, TokenKind.NUM);
+            parseStringLiteral2 = Terminal(stringLiteral1, SyntaxKind.StringToken);
 
             var parsePrimaryExpression = Between(Or(parseID, parseNUM, parseSTRING), Many(Any(Space())));
 
@@ -96,7 +97,7 @@ namespace Parser
         {
             var opParsers = opStr.Select(x => All(x)).ToArray();
             return Select<string, Func<SyntaxNode, SyntaxNode, SyntaxNode>>(Between(Or(opParsers), Many(Any(Space()))), _ => 
-                (left, right) => new SyntaxNode(new Token(TokenKind.PLUS, "+"), left, right)
+                (left, right) => new SyntaxNode(SyntaxKind.PlusExpression, left, right)
             );
         }
 
@@ -434,9 +435,9 @@ namespace Parser
             return right;
         }
 
-        private Func<InputReader, ParserResult<SyntaxNode>> Tokenize(Func<InputReader, ParserResult<string>> parser, TokenKind kind)
+        private Func<InputReader, ParserResult<SyntaxNode>> Terminal(Func<InputReader, ParserResult<string>> parser, SyntaxKind kind)
         {
-            return Select(parser, str => new SyntaxNode(new Token(kind, str)));
+            return Select(parser, str => (SyntaxNode)new Terminal(kind, str));
         }
 
         private string ConcatStrs(IEnumerable<string> strs)

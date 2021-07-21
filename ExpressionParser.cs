@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Parser.AST;
 
 namespace Parser
 {
@@ -17,6 +18,30 @@ namespace Parser
     */
     class ExpressionParser 
     {
+
+        private static Dictionary<TokenKind, SyntaxKind> _table = new Dictionary<TokenKind, SyntaxKind> 
+        {
+            {TokenKind.PLUS, SyntaxKind.PlusExpression},
+            {TokenKind.MINUS, SyntaxKind.MinusExpression},
+            {TokenKind.MUL, SyntaxKind.MulExpression},
+            {TokenKind.DIV, SyntaxKind.DivExpression},
+            {TokenKind.PERCENT, SyntaxKind.PercentExpression},
+            {TokenKind.NULL_COALESCE, SyntaxKind.NullCoalescExpression},
+
+            {TokenKind.NOT, SyntaxKind.NotExpression},
+            {TokenKind.DOUBLE_EQUAL, SyntaxKind.EqualExpression},
+            {TokenKind.NOT_EQUAL, SyntaxKind.NotEqualExpression},
+            {TokenKind.MORE_THAN, SyntaxKind.GreaterThanExpression},
+            {TokenKind.MORE_OR_EQUAL, SyntaxKind.GreaterOrEqualExpression},
+            {TokenKind.LESS_THAN, SyntaxKind.LessThanExpression},
+            {TokenKind.LESS_OR_EQUAl, SyntaxKind.LessOrEqualExpression},
+
+            {TokenKind.SINGLE_AND, SyntaxKind.BitAndExpression},
+            {TokenKind.XOR, SyntaxKind.BitXorExpression},
+
+            {TokenKind.DOUBLE_AND, SyntaxKind.LogicalAndExpression},
+            {TokenKind.DOUBLE_VERTICAL_LINE, SyntaxKind.LogicalOrExpression},
+        };
 
         private ExpressionLexer _lexer;
         public ExpressionParser() 
@@ -67,18 +92,18 @@ namespace Parser
                         argList.AddRange(args);
                     }
                     eatToken(TokenKind.CLOSE_BRACKET);
-                    result = new SyntaxNode(op, argList.ToArray());
+                    result = new SyntaxNode(SyntaxKind.InvokeExpression, argList.ToArray());
                 }
                 else if (op.Kind == TokenKind.DOT)
                 {
                     var property = eatToken(TokenKind.ID);
-                    result = new SyntaxNode(op, result, new SyntaxNode(property));
+                    result = new SyntaxNode(SyntaxKind.AccessExpression, result, new Terminal(SyntaxKind.IdentiferToken, property.Text));
                 }
                 else
                 {
                     var index = parseExpression();
                     eatToken(TokenKind.CLOSE_SQUARE_BRACKET);
-                    result = new SyntaxNode(op, result, index);
+                    result = new SyntaxNode(SyntaxKind.ElementExpression, result, index);
                 }   
 
                 t = nextToken(false);  
@@ -95,7 +120,7 @@ namespace Parser
                 case TokenKind.ID:
                 case TokenKind.NUM:
                 case TokenKind.STRING:
-                    exp = new SyntaxNode(token);
+                    exp = new Terminal(SyntaxKind.StringToken, token.Text);
                     eatToken();
                     return exp;
                 case TokenKind.OPEN_BRACKET:
@@ -105,14 +130,12 @@ namespace Parser
                     return exp;
                 case TokenKind.OPEN_SQUARE_BRACKET:
                     var op = eatToken();
-                    var result = new SyntaxNode(op);
-                    var children = new List<SyntaxNode>(){null};
+                    var result = new SyntaxNode(SyntaxKind.ArrayCreationExpression);
                     if (nextToken().Kind != TokenKind.CLOSE_SQUARE_BRACKET)
                     {
                         var parts = parseOneOrMore(parseExpression, TokenKind.COMMA);
-                        children.AddRange(parts);
+                        result.Children = parts.ToArray();
                     }
-                    result.Children = children.ToArray();
                     eatToken(TokenKind.CLOSE_SQUARE_BRACKET);
                     return result;
                 default:
@@ -141,7 +164,7 @@ namespace Parser
                     {
                         var op = nextToken();
                         eatToken();
-                        result = new SyntaxNode(op, result, gened());
+                        result = new SyntaxNode(TokenKind2SyntaxKind(op.Kind), result, gened());
                     }
                 }
                 else 
@@ -152,7 +175,7 @@ namespace Parser
                         var op = nextToken();
                         eatToken();
                         var nextPart = parse();
-                        result = new SyntaxNode(op, result, nextPart);
+                        result = new SyntaxNode(TokenKind2SyntaxKind(op.Kind), result, nextPart);
                     }
                 }
 
@@ -171,7 +194,7 @@ namespace Parser
                 {
                     eatToken();
                     var result = gened();
-                    return new SyntaxNode(t, result);
+                    return new SyntaxNode(TokenKind2SyntaxKind(t.Kind), result);
                 }
                 return parse();
             };
@@ -205,6 +228,11 @@ namespace Parser
         private Token eatToken(TokenKind kind = TokenKind.NONE)
         {
             return _lexer.EatToken(kind);
+        }
+
+        private SyntaxKind TokenKind2SyntaxKind(TokenKind kind)
+        {
+            return _table[kind];
         }
     }
 }

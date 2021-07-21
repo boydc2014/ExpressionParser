@@ -5,10 +5,15 @@ namespace Parser.AST
         public SyntaxKind Kind {get; set;}
         public SyntaxNode[] Children {get; set;}
 
-        public SyntaxNode(SyntaxKind kind, SyntaxNode[] children = null)
+        public SyntaxNode(SyntaxKind kind, params SyntaxNode[] children)
         {
             Kind = kind;
-            Children = children ?? new SyntaxNode[]{};
-        }    
+            Children = children;
+        }
+
+        public override string ToString()
+        {
+            return "(" + Kind.ToString() + "," + string.Join(",", (object[])Children) + ")";
+        }
     }
 }
