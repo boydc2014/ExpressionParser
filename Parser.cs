@@ -82,22 +82,95 @@ namespace Parser
             var stringLiteral2 = Concat(Str(Char('\'')), Concat(Many(Or(Many1(Not("\\'")), escapeChar))), Str(Char('\'')));
             var stringLiteral = Or(stringLiteral1, stringLiteral2);
 
-            var parseID = Terminal(ID, SyntaxKind.IdentiferToken);
+            parseID = Terminal(ID, SyntaxKind.IdentiferToken);
             var parseNUM = Terminal(NUM, SyntaxKind.NumToken);
             var parseSTRING = Terminal(stringLiteral, SyntaxKind.StringToken);
 
             parseStringLiteral2 = Terminal(stringLiteral1, SyntaxKind.StringToken);
 
             var parsePrimaryExpression = Between(Or(parseID, parseNUM, parseSTRING), Many(Any(Space())));
+            var parsePostfixExpression = genParsePostfixExpression(parsePrimaryExpression);
+           
+            parseExpression = ChainR(parsePrimaryExpression, BinaryOps("^"));
+            parseExpression = ChainL(parseExpression, BinaryOps("*", "/", "%"));
+            parseExpression = ChainL(parseExpression, BinaryOps("+", "-"));
+            parseExpression = ChainL(parseExpression, BinaryOps("==", "!="));
+            parseExpression = ChainL(parseExpression, BinaryOps(">=", ">", "<=", "<"));
+            parseExpression = ChainL(parseExpression, BinaryOps("&&"));
+            parseExpression = ChainL(parseExpression, BinaryOps("||"));
+            parseExpression = ChainL(parseExpression, BinaryOps("??"));
+        }
 
-            parseExpression = ChainL(parsePrimaryExpression, BinaryOps("+", "-"));
+        private static Dictionary<string, SyntaxKind> opTable = new Dictionary<string, SyntaxKind>()
+        {
+            {"+", SyntaxKind.PlusExpression},
+            {"-", SyntaxKind.MinusExpression},
+            {"*", SyntaxKind.MulExpression},
+            {"/", SyntaxKind.DivExpression},
+            {"%", SyntaxKind.PercentExpression},
+            {"^", SyntaxKind.BitXorExpression},
+            {"==", SyntaxKind.EqualExpression},
+            {"!=", SyntaxKind.NotEqualExpression},
+            {">", SyntaxKind.GreaterThanExpression},
+            {">=", SyntaxKind.GreaterOrEqualExpression},
+            {"<", SyntaxKind.LessThanExpression},
+            {"<=", SyntaxKind.LessOrEqualExpression},
+            {"&&", SyntaxKind.LogicalAndExpression},
+            {"||", SyntaxKind.LogicalOrExpression},
+            {"??", SyntaxKind.NullCoalescExpression}
+        };
+
+
+        private Func<InputReader, ParserResult<SyntaxNode>> genParsePostfixExpression(Func<InputReader, ParserResult<SyntaxNode>> parser)
+        {
+            var parseProperty = Before(Any("."), parseID);
+            var parseIndex = Between(Spaced(parseExpression), Any("["), Any("]"));
+            var parseArgList = Between(Spaced(SepBy(parseExpression, Spaced(Any(",")))), Any("("), Any(")"));
+
+            return (input) =>
+            {
+                var primary = parser(input);
+                if (!primary.IsSuccess)
+                {
+                    return ParserResult<SyntaxNode>.Failure(primary.ErrorMessage);
+                }
+                
+                while(true)
+                {
+                    var property = Try(parseProperty)(input);
+                    if (property.IsSuccess)
+                    {
+                        primary.Value = new SyntaxNode(SyntaxKind.AccessExpression, primary.Value, property.Value);
+                        continue;
+                    }
+
+                    var index = Try(parseProperty)(input);
+                    if (index.IsSuccess)
+                    {
+                        primary.Value = new SyntaxNode(SyntaxKind.ElementExpression, primary.Value, index.Value);
+                        continue;
+                    }
+
+                    var argList = Try(parseArgList)(input);
+                    if (argList.IsSuccess)
+                    {
+                        primary.Value = new SyntaxNode(SyntaxKind.InvokeExpression, primary.Value);
+                        primary.Value.Children = primary.Value.Children.Concat(argList.Value).ToArray();
+                        continue;
+                    }
+
+                    break;
+                }
+                
+                return primary;
+            };
         }
 
         private Func<InputReader, ParserResult<Func<SyntaxNode, SyntaxNode, SyntaxNode>>> BinaryOps(params string[] opStr)
         {
             var opParsers = opStr.Select(x => All(x)).ToArray();
-            return Select<string, Func<SyntaxNode, SyntaxNode, SyntaxNode>>(Between(Or(opParsers), Many(Any(Space()))), _ => 
-                (left, right) => new SyntaxNode(SyntaxKind.PlusExpression, left, right)
+            return Select<string, Func<SyntaxNode, SyntaxNode, SyntaxNode>>(Between(Or(opParsers), Many(Any(Space()))), op => 
+                (left, right) => new SyntaxNode(opTable[op], left, right)
             );
         }
 
@@ -114,14 +187,20 @@ namespace Parser
             };
         }
 
-        private Func<InputReader, ParserResult<T>> Where<T>(Func<InputReader, ParserResult<T>> parser, Func<T, bool> predicate)
+        private Func<InputReader, ParserResult<T>> Where<T>(Func<InputReader, ParserResult<T>> parser, Func<T, bool> predicate, Func<T, string> predicateFailMessage = null)
         {
             return (input) =>
             {
                 var result = parser(input);
-                if (!result.IsSuccess || !predicate(result.Value))
+                if (!result.IsSuccess) 
                 {
-                    return ParserResult<T>.Failure(result.ErrorMessage + " or condition is not meet");
+                    return ParserResult<T>.Failure(result.ErrorMessage);
+                }
+
+                if(!predicate(result.Value))
+                {
+                    var message = predicateFailMessage != null ? predicateFailMessage(result.Value) : "Condition not meet";
+                    return ParserResult<T>.Failure(message);
                 }
                 return ParserResult<T>.Success(result.Value);
             };
@@ -129,7 +208,7 @@ namespace Parser
 
         private Func<InputReader, ParserResult<char>> Char(char c) 
         {
-            return Where(Any(), ch => ch == c);
+            return Where(Any(), ch => ch == c, ch => $"Input {ch} is expected value {c}.");
         }
 
         private Func<InputReader, ParserResult<string>> All(string str)
@@ -150,12 +229,12 @@ namespace Parser
 
         private Func<InputReader, ParserResult<char>> Not(string str) 
         {
-            return Where(Any(), c => !str.Contains(c));
+            return Where(Any(), c => !str.Contains(c), c => $"Input {c} should not in {str}.");
         }
 
         private Func<InputReader, ParserResult<char>> Any(string str) 
         {
-            return Where(Any(), c => str.Contains(c));
+            return Where(Any(), c => str.Contains(c), c => $"Input {c} is not in {str}.");
         }
 
         private Func<InputReader, ParserResult<string>> Str<T>(Func<InputReader, ParserResult<T>> parser)
@@ -177,10 +256,12 @@ namespace Parser
             };
         }
 
-        private Func<InputReader, ParserResult<T>> Or<T>(params Func<InputReader, ParserResult<T>>[] parsers)
+          private Func<InputReader, ParserResult<T>> Or<T>(params Func<InputReader, ParserResult<T>>[] parsers)
         {
             return (input) => 
             {
+                var messages = new List<string>();
+
                 foreach (var parser in parsers)
                 {
                     var result = Try<T>(parser)(input);
@@ -188,8 +269,9 @@ namespace Parser
                     {
                         return result;
                     }
+                    messages.Add(result.ErrorMessage);
                 }
-                return ParserResult<T>.Failure("Parse fail");
+                return ParserResult<T>.Failure(string.Join("<AND>", messages));
             };
         }
 
@@ -332,6 +414,24 @@ namespace Parser
             };
         }
 
+        private Func<InputReader, ParserResult<IEnumerable<T>>> SepBy<T, U>(Func<InputReader, ParserResult<T>> parser, Func<InputReader, ParserResult<U>> sep)
+        {
+            return (input) => 
+            {
+                var result = new List<T>(){};
+                var first = Try(parser)(input);
+                if (first.IsSuccess)
+                {
+                    result.Add(first.Value);
+
+                    var rest = Many(Before(sep, parser))(input);
+                    result.AddRange(rest.Value);
+                }
+
+                return ParserResult<IEnumerable<T>>.Success(result);
+            };
+        }
+
         private Func<InputReader, ParserResult<string>> Concat(params Func<InputReader, ParserResult<string>>[] parsers)
         {
             return Aggregate(parsers, (x, y) => x + y);
@@ -346,6 +446,11 @@ namespace Parser
         private Func<InputReader, ParserResult<T>> Between<T, U>(Func<InputReader, ParserResult<T>> parser, Func<InputReader, ParserResult<U>> sep)
         {
             return After(Before(sep, parser), sep);
+        }
+
+        private Func<InputReader, ParserResult<T>> Between<T, U, V>(Func<InputReader, ParserResult<T>> parser, Func<InputReader, ParserResult<U>> sep1, Func<InputReader, ParserResult<V>> sep2)
+        {
+            return After(Before(sep1, parser), sep2);
         }
         private Func<InputReader, ParserResult<U>> Before<T, U>(Func<InputReader, ParserResult<T>> parser1, Func<InputReader, ParserResult<U>> parser2)
         {
@@ -407,7 +512,7 @@ namespace Parser
             };
         }
 
-       private Func<InputReader, ParserResult<T>> ChainR<T>(Func<InputReader, ParserResult<T>> parser, Func<InputReader, ParserResult<Func<T, T, T>>> op)
+        private Func<InputReader, ParserResult<T>> ChainR<T>(Func<InputReader, ParserResult<T>> parser, Func<InputReader, ParserResult<Func<T, T, T>>> op)
         {
             Func<InputReader, ParserResult<T>> right = null;
 
@@ -440,6 +545,11 @@ namespace Parser
             return Select(parser, str => (SyntaxNode)new Terminal(kind, str));
         }
 
+        private Func<InputReader, ParserResult<T>> Spaced<T>(Func<InputReader, ParserResult<T>> parser)
+        {
+            return Between(parser, Many(Any(Space())));
+        }
+
         private string ConcatStrs(IEnumerable<string> strs)
         {
             return string.Join("", strs);
@@ -466,6 +576,7 @@ namespace Parser
             return " \t\r\n";
         }
         private Func<InputReader, ParserResult<SyntaxNode>> parseExpression;
+        private Func<InputReader, ParserResult<SyntaxNode>> parseID;
         public Func<InputReader, ParserResult<SyntaxNode>> parseStringLiteral2;
     }
 }

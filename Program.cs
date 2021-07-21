@@ -59,8 +59,8 @@ namespace Parser
                 "_a1"
             };
 
-            //TestPureParser(Benchmarks.expressions);
-            TestParser(expressions);
+            TestPureParser(expressions);
+            //TestParser(expressions);
             //TestLexer(expressions);
             //BenchmarkRunner.Run<Benchmarks>();
             //TestAdhoc();
