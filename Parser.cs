@@ -71,27 +71,29 @@ namespace Parser
 
         public Parser()
         {
-            var ID = Concat(Opt(Or(All("@@"), Str(Any("_#$@%")))), Str(Any(Letter())), Many(Any(Letter() + Digit() + "_")));
+            // var ID = Concat(Opt(Or(All("@@"), Str(Any("_#$@%")))), Str(Any(Letter())), Many(Any(Letter() + Digit() + "_")));
             
-            var manyDigits = Many1(Any(Digit()));
-            var NUM = Concat(manyDigits, Opt(Concat(Str(Char('.')), manyDigits)));
+            // var manyDigits = Many1(Any(Digit()));
+            // var NUM = Concat(manyDigits, Opt(Concat(Str(Char('.')), manyDigits)));
 
-            var escapeChar = Concat(Str(Char('\\')), Str(Not(""))); 
+            // var escapeChar = Concat(Str(Char('\\')), Str(Not(""))); 
 
-            var stringLiteral1 = Concat(Str(Char('"')), Concat(Many(Or(Many1(Not("\\\"")), escapeChar))), Str(Char('"')));
-            var stringLiteral2 = Concat(Str(Char('\'')), Concat(Many(Or(Many1(Not("\\'")), escapeChar))), Str(Char('\'')));
-            var stringLiteral = Or(stringLiteral1, stringLiteral2);
+            // var stringLiteral1 = Concat(Str(Char('"')), Concat(Many(Or(Many1(Not("\\\"")), escapeChar))), Str(Char('"')));
+            // var stringLiteral2 = Concat(Str(Char('\'')), Concat(Many(Or(Many1(Not("\\'")), escapeChar))), Str(Char('\'')));
+            // var stringLiteral = Or(stringLiteral1, stringLiteral2);
 
-            parseID = Terminal(ID, SyntaxKind.IdentiferToken);
-            var parseNUM = Terminal(NUM, SyntaxKind.NumToken);
-            var parseSTRING = Terminal(stringLiteral, SyntaxKind.StringToken);
+            // parseID = Terminal(ID, SyntaxKind.IdentiferToken);
+            // var parseNUM = Terminal(NUM, SyntaxKind.NumToken);
+            // var parseSTRING = Terminal(stringLiteral, SyntaxKind.StringToken);
 
-            parseStringLiteral2 = Terminal(stringLiteral1, SyntaxKind.StringToken);
+            // parseStringLiteral2 = Terminal(stringLiteral1, SyntaxKind.StringToken);
 
-            var parsePrimaryExpression = Between(Or(parseID, parseNUM, parseSTRING), Many(Any(Space())));
-            var parsePostfixExpression = genParsePostfixExpression(parsePrimaryExpression);
+            // var parsePrimaryExpression = Between(Or(parseID, parseNUM, parseSTRING), Many(Any(Space())));
+            
+            var parsePrimaryExpression = ParsePrimaryExpression();
+            var parsePostfixExpression = ParsePostfixExpression(parsePrimaryExpression);
            
-            parseExpression = ChainR(parsePrimaryExpression, BinaryOps("^"));
+            parseExpression = ChainR(parsePostfixExpression, BinaryOps("^"));
             parseExpression = ChainL(parseExpression, BinaryOps("*", "/", "%"));
             parseExpression = ChainL(parseExpression, BinaryOps("+", "-"));
             parseExpression = ChainL(parseExpression, BinaryOps("==", "!="));
@@ -121,11 +123,35 @@ namespace Parser
         };
 
 
-        private Func<InputReader, ParserResult<SyntaxNode>> genParsePostfixExpression(Func<InputReader, ParserResult<SyntaxNode>> parser)
+        private Func<InputReader, ParserResult<SyntaxNode>> ParsePrimaryExpression()
+        {   
+            var ID = Concat(Opt(Or(All("@@"), Str(Any("_#$@%")))), Str(Any(Letter())), Many(Any(Letter() + Digit() + "_")));
+            
+            var manyDigits = Many1(Any(Digit()));
+            var NUM = Concat(manyDigits, Opt(Concat(Str(Char('.')), manyDigits)));
+
+            var escapeChar = Concat(Str(Char('\\')), Str(Not(""))); 
+
+            var stringLiteral1 = Concat(Str(Char('"')), Concat(Many(Or(Many1(Not("\\\"")), escapeChar))), Str(Char('"')));
+            var stringLiteral2 = Concat(Str(Char('\'')), Concat(Many(Or(Many1(Not("\\'")), escapeChar))), Str(Char('\'')));
+            var stringLiteral = Or(stringLiteral1, stringLiteral2);
+
+            parseID = Terminal(ID, SyntaxKind.IdentiferToken);
+            var parseNUM = Terminal(NUM, SyntaxKind.NumToken);
+            var parseSTRING = Terminal(stringLiteral, SyntaxKind.StringToken);
+
+            var parseArgList = SquareBracketed(SepBy(Spaced(LazyParseExpression()), Any(",")));
+            var parseArrayCreation = Select(parseArgList, argList => { return new SyntaxNode(SyntaxKind.ArrayCreationExpression, argList.ToArray());});
+
+            return Or(parseID, parseNUM, parseSTRING, Bracketed(Spaced(LazyParseExpression())), parseArrayCreation);
+        }
+
+
+        private Func<InputReader, ParserResult<SyntaxNode>> ParsePostfixExpression(Func<InputReader, ParserResult<SyntaxNode>> parser)
         {
-            var parseProperty = Before(Any("."), parseID);
-            var parseIndex = Between(Spaced(parseExpression), Any("["), Any("]"));
-            var parseArgList = Between(Spaced(SepBy(parseExpression, Spaced(Any(",")))), Any("("), Any(")"));
+            var parseProperty = Before(Any("."), LazyParseID());
+            var parseIndex = Between(Spaced(LazyParseExpression()), Any("["), Any("]"));
+            var parseArgList = Between(Spaced(SepBy(LazyParseExpression(), Spaced(Any(",")))), Any("("), Any(")"));
 
             return (input) =>
             {
@@ -144,7 +170,7 @@ namespace Parser
                         continue;
                     }
 
-                    var index = Try(parseProperty)(input);
+                    var index = Try(parseIndex)(input);
                     if (index.IsSuccess)
                     {
                         primary.Value = new SyntaxNode(SyntaxKind.ElementExpression, primary.Value, index.Value);
@@ -550,6 +576,21 @@ namespace Parser
             return Between(parser, Many(Any(Space())));
         }
 
+        private Func<InputReader, ParserResult<T>> Bracketed<T>(Func<InputReader, ParserResult<T>> parser)
+        {
+            return Between(parser, Any("("), Any(")"));
+        }
+
+        private Func<InputReader, ParserResult<T>> SquareBracketed<T>(Func<InputReader, ParserResult<T>> parser)
+        {
+            return Between(parser, Any("["), Any("]"));
+        }
+
+        private Func<InputReader, ParserResult<T>> CurlyBracketed<T>(Func<InputReader, ParserResult<T>> parser)
+        {
+            return Between(parser, Any("["), Any("]"));
+        }
+
         private string ConcatStrs(IEnumerable<string> strs)
         {
             return string.Join("", strs);
@@ -575,6 +616,22 @@ namespace Parser
         {
             return " \t\r\n";
         }
+
+        private Func<InputReader, ParserResult<SyntaxNode>> LazyParseExpression()
+        {
+            return (input) => 
+            {
+                return parseExpression(input);
+            };
+        }
+        private Func<InputReader, ParserResult<SyntaxNode>> LazyParseID()
+        {
+            return (input) => 
+            {
+                return parseID(input);
+            };
+        }
+
         private Func<InputReader, ParserResult<SyntaxNode>> parseExpression;
         private Func<InputReader, ParserResult<SyntaxNode>> parseID;
         public Func<InputReader, ParserResult<SyntaxNode>> parseStringLiteral2;
