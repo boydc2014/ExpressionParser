@@ -634,6 +634,5 @@ namespace Parser
 
         private Func<InputReader, ParserResult<SyntaxNode>> parseExpression;
         private Func<InputReader, ParserResult<SyntaxNode>> parseID;
-        public Func<InputReader, ParserResult<SyntaxNode>> parseStringLiteral2;
     }
 }

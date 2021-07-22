@@ -49,7 +49,7 @@ namespace Parser
                 {
                     var exp = parser.ParseExpression(e);
                 }
-                catch (System.Exception ex)
+                catch
                 {
                     //System.Console.WriteLine(ex.Message);
                 }

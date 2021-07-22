@@ -91,20 +91,20 @@ namespace Parser
 
         static void TestAdhoc()
         {
-            var parser = new Parser().parseStringLiteral2;
-            var e = "\"abc\\\"abc\"";
-            {
-                Console.WriteLine(e);
-                var result = parser(new Parser.InputReader(e));
-                if (result.IsSuccess)
-                {
-                    Console.WriteLine(result.Value);
-                }
-                else
-                {
-                    Console.WriteLine(result.ErrorMessage);
-                }
-            }
+            // var parser = new Parser().parseStringLiteral2;
+            // var e = "\"abc\\\"abc\"";
+            // {
+            //     Console.WriteLine(e);
+            //     var result = parser(new Parser.InputReader(e));
+            //     if (result.IsSuccess)
+            //     {
+            //         Console.WriteLine(result.Value);
+            //     }
+            //     else
+            //     {
+            //         Console.WriteLine(result.ErrorMessage);
+            //     }
+            // }
         }
 
         static void TestParser(string[] expressions)
