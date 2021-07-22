@@ -90,17 +90,17 @@ namespace Parser
 
             // var parsePrimaryExpression = Between(Or(parseID, parseNUM, parseSTRING), Many(Any(Space())));
             
-            var parsePrimaryExpression = ParsePrimaryExpression();
+            var parsePrimaryExpression = Debug(ParsePrimaryExpression(), "ParsePrimaryExpression");
             var parsePostfixExpression = ParsePostfixExpression(parsePrimaryExpression);
            
-            parseExpression = ChainR(parsePostfixExpression, BinaryOps("^"));
-            parseExpression = ChainL(parseExpression, BinaryOps("*", "/", "%"));
-            parseExpression = ChainL(parseExpression, BinaryOps("+", "-"));
-            parseExpression = ChainL(parseExpression, BinaryOps("==", "!="));
-            parseExpression = ChainL(parseExpression, BinaryOps(">=", ">", "<=", "<"));
-            parseExpression = ChainL(parseExpression, BinaryOps("&&"));
-            parseExpression = ChainL(parseExpression, BinaryOps("||"));
-            parseExpression = ChainL(parseExpression, BinaryOps("??"));
+            parseExpression = ChainR(parsePostfixExpression, Debug(BinaryOps("^"), "Looking OP ^"));
+            parseExpression = ChainL(parseExpression, Debug(BinaryOps("*", "/", "%"), "Looking OP *, /, %"));
+            parseExpression = ChainL(parseExpression, Debug(BinaryOps("+", "-"), "Looking OP +, -"));
+            parseExpression = ChainL(parseExpression, Debug(BinaryOps("==", "!="), "Looking OP ==, !="));
+            parseExpression = ChainL(parseExpression, Debug(BinaryOps(">=", ">", "<=", "<"), "Looking OP <=, <, >=, >"));
+            parseExpression = ChainL(parseExpression, Debug(BinaryOps("&&"), "Looking OP &&"));
+            parseExpression = ChainL(parseExpression, Debug(BinaryOps("||"), "Looking OP ||"));
+            parseExpression = ChainL(parseExpression, Debug(BinaryOps("??"), "Looking OP ??"));
         }
 
         private static Dictionary<string, SyntaxKind> opTable = new Dictionary<string, SyntaxKind>()
@@ -632,7 +632,35 @@ namespace Parser
             };
         }
 
+        private Func<InputReader, ParserResult<T>> Debug<T>(Func<InputReader, ParserResult<T>> parser, string label)
+        {
+            return (input) => 
+            {
+                if (debug)
+                {
+                    var indent = string.Concat(Enumerable.Repeat("  ", debugLevel));
+                    Console.WriteLine($"{indent}Enter {label}. <POS:{input.GetPosition()}>");
+                    debugLevel++;
+                }
+
+                var result = parser(input);
+
+                if (debug) 
+                {
+                    debugLevel--;
+                    var indent = string.Concat(Enumerable.Repeat("  ", debugLevel));
+                    Console.Write($"{indent}Leave {label}. ");
+                    Console.Write(result.IsSuccess ? "<Success>":"<Failure>");
+                    Console.WriteLine($" <POS:{input.GetPosition()}>");
+                }
+
+                return result;
+            };
+        }
+
         private Func<InputReader, ParserResult<SyntaxNode>> parseExpression;
         private Func<InputReader, ParserResult<SyntaxNode>> parseID;
+        private bool debug = true;
+        private int debugLevel = 0;
     }
 }
