@@ -27,7 +27,7 @@ namespace Parser
                 "[1, 2].length + [].length",
                 "a + +b",
                 "f.g(x) != f(g(x))",
-                "!!!!a.b != 0",
+                "!!!!++a.b != 0",
                 "-2 + a == 3 + 4",
                 "a != b^2",
                 "fun[a+2](a).b.c + c",
@@ -59,10 +59,10 @@ namespace Parser
                 "_a1"
             };
 
-            TestPureParser(expressions);
+            //TestPureParser(expressions);
             //TestParser(expressions);
             //TestLexer(expressions);
-            //BenchmarkRunner.Run<Benchmarks>();
+            BenchmarkRunner.Run<Benchmarks>();
             //TestAdhoc();
         }
 

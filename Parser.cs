@@ -94,6 +94,8 @@ namespace Parser
             var parsePostfixExpression = ParsePostfixExpression(parsePrimaryExpression);
            
             parseExpression = ChainR(parsePostfixExpression, Debug(BinaryOps("^"), "Looking OP ^"));
+            parseExpression = ParseUniaryExpression(parseExpression, UniaryOps("+", "-", "!"));
+
             parseExpression = ChainL(parseExpression, Debug(BinaryOps("*", "/", "%"), "Looking OP *, /, %"));
             parseExpression = ChainL(parseExpression, Debug(BinaryOps("+", "-"), "Looking OP +, -"));
             parseExpression = ChainL(parseExpression, Debug(BinaryOps("==", "!="), "Looking OP ==, !="));
@@ -119,7 +121,8 @@ namespace Parser
             {"<=", SyntaxKind.LessOrEqualExpression},
             {"&&", SyntaxKind.LogicalAndExpression},
             {"||", SyntaxKind.LogicalOrExpression},
-            {"??", SyntaxKind.NullCoalescExpression}
+            {"??", SyntaxKind.NullCoalescExpression},
+            {"!", SyntaxKind.NotExpression}
         };
 
 
@@ -192,11 +195,38 @@ namespace Parser
             };
         }
 
+
+        private Func<InputReader, ParserResult<SyntaxNode>> ParseUniaryExpression(Func<InputReader, ParserResult<SyntaxNode>> parser, Func<InputReader, ParserResult<Func<SyntaxNode, SyntaxNode>>> op)
+        {
+            return (input) =>
+            {
+                var ops = Many(op)(input);
+                var right = parser(input);
+                if (!right.IsSuccess)
+                {
+                    return ParserResult<SyntaxNode>.Failure(right.ErrorMessage);
+                }
+
+                foreach (var op in ops.Value.Reverse())
+                {
+                    right.Value = op(right.Value);
+                }
+                return right;
+            };
+        }
         private Func<InputReader, ParserResult<Func<SyntaxNode, SyntaxNode, SyntaxNode>>> BinaryOps(params string[] opStr)
         {
             var opParsers = opStr.Select(x => All(x)).ToArray();
             return Select<string, Func<SyntaxNode, SyntaxNode, SyntaxNode>>(Between(Or(opParsers), Many(Any(Space()))), op => 
                 (left, right) => new SyntaxNode(opTable[op], left, right)
+            );
+        }
+
+        private Func<InputReader, ParserResult<Func<SyntaxNode, SyntaxNode>>> UniaryOps(params string[] opStr)
+        {
+            var opParsers = opStr.Select(x => All(x)).ToArray();
+            return Select<string, Func<SyntaxNode, SyntaxNode>>(Or(opParsers), op => 
+                right => new SyntaxNode(opTable[op], right)
             );
         }
 
@@ -660,7 +690,7 @@ namespace Parser
 
         private Func<InputReader, ParserResult<SyntaxNode>> parseExpression;
         private Func<InputReader, ParserResult<SyntaxNode>> parseID;
-        private bool debug = true;
+        private bool debug = false;
         private int debugLevel = 0;
     }
 }
