@@ -8,6 +8,8 @@ namespace Parser
 {
     class Parser 
     {
+        public delegate ParserResult<T> IParser<T>(InputReader input);
+
         public class InputReader 
         {
             private string _input;
@@ -70,26 +72,7 @@ namespace Parser
         }
 
         public Parser()
-        {
-            // var ID = Concat(Opt(Or(All("@@"), Str(Any("_#$@%")))), Str(Any(Letter())), Many(Any(Letter() + Digit() + "_")));
-            
-            // var manyDigits = Many1(Any(Digit()));
-            // var NUM = Concat(manyDigits, Opt(Concat(Str(Char('.')), manyDigits)));
-
-            // var escapeChar = Concat(Str(Char('\\')), Str(Not(""))); 
-
-            // var stringLiteral1 = Concat(Str(Char('"')), Concat(Many(Or(Many1(Not("\\\"")), escapeChar))), Str(Char('"')));
-            // var stringLiteral2 = Concat(Str(Char('\'')), Concat(Many(Or(Many1(Not("\\'")), escapeChar))), Str(Char('\'')));
-            // var stringLiteral = Or(stringLiteral1, stringLiteral2);
-
-            // parseID = Terminal(ID, SyntaxKind.IdentiferToken);
-            // var parseNUM = Terminal(NUM, SyntaxKind.NumToken);
-            // var parseSTRING = Terminal(stringLiteral, SyntaxKind.StringToken);
-
-            // parseStringLiteral2 = Terminal(stringLiteral1, SyntaxKind.StringToken);
-
-            // var parsePrimaryExpression = Between(Or(parseID, parseNUM, parseSTRING), Many(Any(Space())));
-            
+        {   
             var parsePrimaryExpression = Debug(ParsePrimaryExpression(), "ParsePrimaryExpression");
             var parsePostfixExpression = ParsePostfixExpression(parsePrimaryExpression);
            
@@ -126,7 +109,7 @@ namespace Parser
         };
 
 
-        private Func<InputReader, ParserResult<SyntaxNode>> ParsePrimaryExpression()
+        private IParser<SyntaxNode> ParsePrimaryExpression()
         {   
             var ID = Concat(Opt(Or(All("@@"), Str(Any("_#$@%")))), Str(Any(Letter())), Many(Any(Letter() + Digit() + "_")));
             
@@ -150,7 +133,7 @@ namespace Parser
         }
 
 
-        private Func<InputReader, ParserResult<SyntaxNode>> ParsePostfixExpression(Func<InputReader, ParserResult<SyntaxNode>> parser)
+        private IParser<SyntaxNode> ParsePostfixExpression(IParser<SyntaxNode> parser)
         {
             var parseProperty = Before(Any("."), LazyParseID());
             var parseIndex = Between(Spaced(LazyParseExpression()), Any("["), Any("]"));
@@ -196,7 +179,7 @@ namespace Parser
         }
 
 
-        private Func<InputReader, ParserResult<SyntaxNode>> ParseUniaryExpression(Func<InputReader, ParserResult<SyntaxNode>> parser, Func<InputReader, ParserResult<Func<SyntaxNode, SyntaxNode>>> op)
+        private IParser<SyntaxNode> ParseUniaryExpression(IParser<SyntaxNode> parser,IParser<Func<SyntaxNode, SyntaxNode>> op)
         {
             return (input) =>
             {
@@ -214,7 +197,7 @@ namespace Parser
                 return right;
             };
         }
-        private Func<InputReader, ParserResult<Func<SyntaxNode, SyntaxNode, SyntaxNode>>> BinaryOps(params string[] opStr)
+        private IParser<Func<SyntaxNode, SyntaxNode, SyntaxNode>> BinaryOps(params string[] opStr)
         {
             var opParsers = opStr.Select(x => All(x)).ToArray();
             return Select<string, Func<SyntaxNode, SyntaxNode, SyntaxNode>>(Between(Or(opParsers), Many(Any(Space()))), op => 
@@ -222,7 +205,7 @@ namespace Parser
             );
         }
 
-        private Func<InputReader, ParserResult<Func<SyntaxNode, SyntaxNode>>> UniaryOps(params string[] opStr)
+        private IParser<Func<SyntaxNode, SyntaxNode>> UniaryOps(params string[] opStr)
         {
             var opParsers = opStr.Select(x => All(x)).ToArray();
             return Select<string, Func<SyntaxNode, SyntaxNode>>(Or(opParsers), op => 
@@ -230,7 +213,7 @@ namespace Parser
             );
         }
 
-        private Func<InputReader, ParserResult<char>> Any() 
+        private IParser<char> Any() 
         {
             return (input) => 
             {
@@ -243,7 +226,7 @@ namespace Parser
             };
         }
 
-        private Func<InputReader, ParserResult<T>> Where<T>(Func<InputReader, ParserResult<T>> parser, Func<T, bool> predicate, Func<T, string> predicateFailMessage = null)
+        private IParser<T> Where<T>(IParser<T> parser, Func<T, bool> predicate, Func<T, string> predicateFailMessage = null)
         {
             return (input) =>
             {
@@ -262,12 +245,12 @@ namespace Parser
             };
         }
 
-        private Func<InputReader, ParserResult<char>> Char(char c) 
+        private IParser<char> Char(char c) 
         {
             return Where(Any(), ch => ch == c, ch => $"Input {ch} is expected value {c}.");
         }
 
-        private Func<InputReader, ParserResult<string>> All(string str)
+        private IParser<string> All(string str)
         {
             return (input) => 
             {
@@ -283,22 +266,22 @@ namespace Parser
             };
         }
 
-        private Func<InputReader, ParserResult<char>> Not(string str) 
+        private IParser<char> Not(string str) 
         {
             return Where(Any(), c => !str.Contains(c), c => $"Input {c} should not in {str}.");
         }
 
-        private Func<InputReader, ParserResult<char>> Any(string str) 
+        private IParser<char> Any(string str) 
         {
             return Where(Any(), c => str.Contains(c), c => $"Input {c} is not in {str}.");
         }
 
-        private Func<InputReader, ParserResult<string>> Str<T>(Func<InputReader, ParserResult<T>> parser)
+        private IParser<string> Str<T>(IParser<T> parser)
         {
             return Select<T, string>(parser, v => v.ToString());
         }
 
-        private Func<InputReader, ParserResult<T>> Try<T>(Func<InputReader, ParserResult<T>> parser)
+        private IParser<T> Try<T>(IParser<T> parser)
         {
             return (input) => 
             {
@@ -312,7 +295,7 @@ namespace Parser
             };
         }
 
-          private Func<InputReader, ParserResult<T>> Or<T>(params Func<InputReader, ParserResult<T>>[] parsers)
+        private IParser<T> Or<T>(params IParser<T>[] parsers)
         {
             return (input) => 
             {
@@ -331,7 +314,7 @@ namespace Parser
             };
         }
 
-        private Func<InputReader, ParserResult<T>> Opt<T>(Func<InputReader, ParserResult<T>> parser, T defaultValue = default(T))
+        private IParser<T> Opt<T>(IParser<T> parser, T defaultValue = default(T))
         {
             return (input) => 
             {
@@ -340,7 +323,7 @@ namespace Parser
             };
         }
 
-        private Func<InputReader, ParserResult<U>> Select<T, U>(Func<InputReader, ParserResult<T>> parser, Func<T, U> func)
+        private IParser<U> Select<T, U>(IParser<T> parser, Func<T, U> func)
         {
             return (input) => 
             {
@@ -356,7 +339,7 @@ namespace Parser
             };
         }
 
-        private Func<InputReader, ParserResult<IEnumerable<T>>> Many<T>(Func<InputReader, ParserResult<T>> parser)
+        private IParser<IEnumerable<T>> Many<T>(IParser<T> parser)
         {
             return (input) => 
             {
@@ -377,7 +360,7 @@ namespace Parser
             };
         }
 
-        private Func<InputReader, ParserResult<string>> Many(Func<InputReader, ParserResult<char>> parser)
+        private IParser<string> Many(IParser<char> parser)
         {
             return (input) => 
             {
@@ -398,7 +381,7 @@ namespace Parser
             };
         }
 
-        private Func<InputReader, ParserResult<IEnumerable<T>>> Many1<T>(Func<InputReader, ParserResult<T>> parser)
+        private IParser<IEnumerable<T>> Many1<T>(IParser<T> parser)
         {
             return (input) => 
             {
@@ -418,7 +401,7 @@ namespace Parser
             };
         }
 
-        private Func<InputReader, ParserResult<string>> Many1(Func<InputReader, ParserResult<char>> parser)
+        private IParser<string> Many1(IParser<char> parser)
         {
             return (input) => 
             {
@@ -432,7 +415,7 @@ namespace Parser
             };
         }
 
-        private Func<InputReader, ParserResult<IEnumerable<T>>> Seq<T>(params Func<InputReader, ParserResult<T>>[] parsers)
+        private IParser<IEnumerable<T>> Seq<T>(params IParser<T>[] parsers)
         {
             return (input) => 
             {
@@ -453,7 +436,7 @@ namespace Parser
             };
         }
 
-        private Func<InputReader, ParserResult<T>> Aggregate<T>(Func<InputReader, ParserResult<T>>[] parsers, Func<T, T, T> func)
+        private IParser<T> Aggregate<T>(IParser<T>[] parsers, Func<T, T, T> func)
         {
             return (input) =>
             {
@@ -470,7 +453,7 @@ namespace Parser
             };
         }
 
-        private Func<InputReader, ParserResult<IEnumerable<T>>> SepBy<T, U>(Func<InputReader, ParserResult<T>> parser, Func<InputReader, ParserResult<U>> sep)
+        private IParser<IEnumerable<T>> SepBy<T, U>(IParser<T> parser, IParser<U> sep)
         {
             return (input) => 
             {
@@ -488,27 +471,27 @@ namespace Parser
             };
         }
 
-        private Func<InputReader, ParserResult<string>> Concat(params Func<InputReader, ParserResult<string>>[] parsers)
+        private IParser<string> Concat(params IParser<string>[] parsers)
         {
             return Aggregate(parsers, (x, y) => x + y);
         }
 
-        private Func<InputReader, ParserResult<string>> Concat(Func<InputReader, ParserResult<IEnumerable<string>>> parser)
+        private IParser<string> Concat(IParser<IEnumerable<string>> parser)
         {
             return Select<IEnumerable<string>, string>(parser, x => x.Aggregate(string.Empty, (a, b) => a + b));
         }
 
 
-        private Func<InputReader, ParserResult<T>> Between<T, U>(Func<InputReader, ParserResult<T>> parser, Func<InputReader, ParserResult<U>> sep)
+        private IParser<T> Between<T, U>(IParser<T> parser, IParser<U> sep)
         {
             return After(Before(sep, parser), sep);
         }
 
-        private Func<InputReader, ParserResult<T>> Between<T, U, V>(Func<InputReader, ParserResult<T>> parser, Func<InputReader, ParserResult<U>> sep1, Func<InputReader, ParserResult<V>> sep2)
+        private IParser<T> Between<T, U, V>(IParser<T> parser, IParser<U> sep1, IParser<V> sep2)
         {
             return After(Before(sep1, parser), sep2);
         }
-        private Func<InputReader, ParserResult<U>> Before<T, U>(Func<InputReader, ParserResult<T>> parser1, Func<InputReader, ParserResult<U>> parser2)
+        private IParser<U> Before<T, U>(IParser<T> parser1, IParser<U> parser2)
         {
             return (input) => 
             {
@@ -521,7 +504,7 @@ namespace Parser
             };
         }
 
-        private Func<InputReader, ParserResult<T>> After<T, U>(Func<InputReader, ParserResult<T>> parser1, Func<InputReader, ParserResult<U>> parser2)
+        private IParser<T> After<T, U>(IParser<T> parser1, IParser<U> parser2)
         {
             return (input) => 
             {
@@ -540,7 +523,7 @@ namespace Parser
             };
         }
         
-        private Func<InputReader, ParserResult<T>> ChainL<T>(Func<InputReader, ParserResult<T>> parser, Func<InputReader, ParserResult<Func<T, T, T>>> op)
+        private IParser<T> ChainL<T>(IParser<T> parser, IParser<Func<T, T, T>> op)
         {
             return (input) => 
             {
@@ -568,9 +551,9 @@ namespace Parser
             };
         }
 
-        private Func<InputReader, ParserResult<T>> ChainR<T>(Func<InputReader, ParserResult<T>> parser, Func<InputReader, ParserResult<Func<T, T, T>>> op)
+        private IParser<T> ChainR<T>(IParser<T> parser, IParser<Func<T, T, T>> op)
         {
-            Func<InputReader, ParserResult<T>> right = null;
+            IParser<T> right = null;
 
             right = (input) => 
             {
@@ -596,27 +579,27 @@ namespace Parser
             return right;
         }
 
-        private Func<InputReader, ParserResult<SyntaxNode>> Terminal(Func<InputReader, ParserResult<string>> parser, SyntaxKind kind)
+        private IParser<SyntaxNode> Terminal(IParser<string> parser, SyntaxKind kind)
         {
             return Select(parser, str => (SyntaxNode)new Terminal(kind, str));
         }
 
-        private Func<InputReader, ParserResult<T>> Spaced<T>(Func<InputReader, ParserResult<T>> parser)
+        private IParser<T> Spaced<T>(IParser<T> parser)
         {
             return Between(parser, Many(Any(Space())));
         }
 
-        private Func<InputReader, ParserResult<T>> Bracketed<T>(Func<InputReader, ParserResult<T>> parser)
+        private IParser<T> Bracketed<T>(IParser<T> parser)
         {
             return Between(parser, Any("("), Any(")"));
         }
 
-        private Func<InputReader, ParserResult<T>> SquareBracketed<T>(Func<InputReader, ParserResult<T>> parser)
+        private IParser<T> SquareBracketed<T>(IParser<T> parser)
         {
             return Between(parser, Any("["), Any("]"));
         }
 
-        private Func<InputReader, ParserResult<T>> CurlyBracketed<T>(Func<InputReader, ParserResult<T>> parser)
+        private IParser<T> CurlyBracketed<T>(IParser<T> parser)
         {
             return Between(parser, Any("["), Any("]"));
         }
@@ -647,14 +630,14 @@ namespace Parser
             return " \t\r\n";
         }
 
-        private Func<InputReader, ParserResult<SyntaxNode>> LazyParseExpression()
+        private IParser<SyntaxNode> LazyParseExpression()
         {
             return (input) => 
             {
                 return parseExpression(input);
             };
         }
-        private Func<InputReader, ParserResult<SyntaxNode>> LazyParseID()
+        private IParser<SyntaxNode> LazyParseID()
         {
             return (input) => 
             {
@@ -662,7 +645,7 @@ namespace Parser
             };
         }
 
-        private Func<InputReader, ParserResult<T>> Debug<T>(Func<InputReader, ParserResult<T>> parser, string label)
+        private IParser<T> Debug<T>(IParser<T> parser, string label)
         {
             return (input) => 
             {
@@ -687,9 +670,8 @@ namespace Parser
                 return result;
             };
         }
-
-        private Func<InputReader, ParserResult<SyntaxNode>> parseExpression;
-        private Func<InputReader, ParserResult<SyntaxNode>> parseID;
+        private IParser<SyntaxNode> parseExpression;
+        private IParser<SyntaxNode> parseID;
         private bool debug = false;
         private int debugLevel = 0;
     }
