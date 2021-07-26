@@ -120,16 +120,62 @@ namespace Parser
 
             var stringLiteral1 = Concat(Str(Char('"')), Concat(Many(Or(Many1(Not("\\\"")), escapeChar))), Str(Char('"')));
             var stringLiteral2 = Concat(Str(Char('\'')), Concat(Many(Or(Many1(Not("\\'")), escapeChar))), Str(Char('\'')));
-            var stringLiteral = Or(stringLiteral1, stringLiteral2);
+            //var stringLiteral = Or(stringLiteral1, stringLiteral2);
 
             parseID = Terminal(ID, SyntaxKind.IdentiferToken);
             var parseNUM = Terminal(NUM, SyntaxKind.NumToken);
-            var parseSTRING = Terminal(stringLiteral, SyntaxKind.StringToken);
+            //var parseSTRING = Terminal(stringLiteral, SyntaxKind.StringToken);
 
             var parseArgList = SquareBracketed(SepBy(Spaced(LazyParseExpression()), Any(",")));
             var parseArrayCreation = Select(parseArgList, argList => { return new SyntaxNode(SyntaxKind.ArrayCreationExpression, argList.ToArray());});
 
-            return Or(parseID, parseNUM, parseSTRING, Bracketed(Spaced(LazyParseExpression())), parseArrayCreation);
+            var lookAhead = LookAhead();
+
+            var brackedExpression = Bracketed(Spaced(LazyParseExpression()));
+
+            return (input) =>
+            {
+                var next = lookAhead(input);
+                if (!next.IsSuccess)
+                {
+                    return ParserResult<SyntaxNode>.Failure(next.ErrorMessage);
+                }
+                
+                switch (next.Value)
+                {
+                    case '(':
+                        return brackedExpression(input);
+                    case '[':
+                        return parseArrayCreation(input);
+                    case '"':
+                        return Terminal(stringLiteral1, SyntaxKind.StringToken)(input);
+                    case '\'':
+                        return Terminal(stringLiteral2, SyntaxKind.StringToken)(input);
+                    default:
+                        if (Digit().Contains(next.Value))
+                        {
+                            return parseNUM(input);
+                        }
+                        if ((Letter()+"$#_@%").Contains(next.Value))
+                        {
+                            return parseID(input);
+                        }
+                        break;
+                }
+                return ParserResult<SyntaxNode>.Failure($"Can't parse out a primary expression, unexpected char {next.Value}");
+            };
+        }
+
+
+        private IParser<char> LookAhead()
+        {
+            return (input) => 
+            {
+                var pos = input.GetPosition();
+                var result = Any()(input);
+                input.Seek(pos);
+                return result;
+            };
         }
 
 
@@ -138,6 +184,7 @@ namespace Parser
             var parseProperty = Before(Any("."), LazyParseID());
             var parseIndex = Between(Spaced(LazyParseExpression()), Any("["), Any("]"));
             var parseArgList = Between(Spaced(SepBy(LazyParseExpression(), Spaced(Any(",")))), Any("("), Any(")"));
+            var lookAhead = LookAhead();
 
             return (input) =>
             {
@@ -149,29 +196,49 @@ namespace Parser
                 
                 while(true)
                 {
-                    var property = Try(parseProperty)(input);
-                    if (property.IsSuccess)
+                    var next = lookAhead(input);
+                    if (!next.IsSuccess)
                     {
-                        primary.Value = new SyntaxNode(SyntaxKind.AccessExpression, primary.Value, property.Value);
-                        continue;
+                        break;
                     }
 
-                    var index = Try(parseIndex)(input);
-                    if (index.IsSuccess)
+                    var matched = true;
+                    switch (next.Value)
                     {
-                        primary.Value = new SyntaxNode(SyntaxKind.ElementExpression, primary.Value, index.Value);
-                        continue;
+                        case '.':
+                            var property = parseProperty(input);
+                            if (!property.IsSuccess)
+                            {
+                                return ParserResult<SyntaxNode>.Failure("Can't get an identifer after .");
+                            }
+                            primary.Value = new SyntaxNode(SyntaxKind.AccessExpression, primary.Value, property.Value);
+                            break;
+                        case '[':
+                            var index = parseIndex(input);
+                            if (!index.IsSuccess)
+                            {
+                                return ParserResult<SyntaxNode>.Failure("Can't get an expression after [");
+                            }
+                            primary.Value = new SyntaxNode(SyntaxKind.ElementExpression, primary.Value, index.Value);
+                            break;
+                        case '(':
+                            var argList = parseArgList(input);
+                            if (!argList.IsSuccess)
+                            {
+                                return ParserResult<SyntaxNode>.Failure("Can't get arg list after (");
+                            }
+                            primary.Value = new SyntaxNode(SyntaxKind.InvokeExpression, primary.Value);
+                            primary.Value.Children = primary.Value.Children.Concat(argList.Value).ToArray();
+                            break;
+                        default:
+                            matched = false;
+                            break;
                     }
 
-                    var argList = Try(parseArgList)(input);
-                    if (argList.IsSuccess)
+                    if (!matched)
                     {
-                        primary.Value = new SyntaxNode(SyntaxKind.InvokeExpression, primary.Value);
-                        primary.Value.Children = primary.Value.Children.Concat(argList.Value).ToArray();
-                        continue;
+                        break;
                     }
-
-                    break;
                 }
                 
                 return primary;
