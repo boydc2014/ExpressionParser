@@ -126,7 +126,7 @@ namespace Parser
             var parseNUM = Terminal(NUM, SyntaxKind.NumToken);
             //var parseSTRING = Terminal(stringLiteral, SyntaxKind.StringToken);
 
-            var parseArgList = SquareBracketed(SepBy(Spaced(LazyParseExpression()), Any(",")));
+            var parseArgList = SquareBracketed(SepBy(Spaced(LazyParseExpression()), Char(',')));
             var parseArrayCreation = Select(parseArgList, argList => { return new SyntaxNode(SyntaxKind.ArrayCreationExpression, argList.ToArray());});
 
             var lookAhead = LookAhead();
@@ -181,9 +181,9 @@ namespace Parser
 
         private IParser<SyntaxNode> ParsePostfixExpression(IParser<SyntaxNode> parser)
         {
-            var parseProperty = Before(Any("."), LazyParseID());
-            var parseIndex = Between(Spaced(LazyParseExpression()), Any("["), Any("]"));
-            var parseArgList = Between(Spaced(SepBy(LazyParseExpression(), Spaced(Any(",")))), Any("("), Any(")"));
+            var parseProperty = Before(Char('.'), LazyParseID());
+            var parseIndex = SquareBracketed(Spaced(LazyParseExpression()));
+            var parseArgList = Bracketed(SepBy(Spaced(LazyParseExpression()), Char(',')));
             var lookAhead = LookAhead();
 
             return (input) =>
@@ -267,7 +267,7 @@ namespace Parser
         private IParser<Func<SyntaxNode, SyntaxNode, SyntaxNode>> BinaryOps(params string[] opStr)
         {
             var opParsers = opStr.Select(x => All(x)).ToArray();
-            return Select<string, Func<SyntaxNode, SyntaxNode, SyntaxNode>>(Between(Or(opParsers), Many(Any(Space()))), op => 
+            return Select<string, Func<SyntaxNode, SyntaxNode, SyntaxNode>>(Between(Or(opParsers), Spaces()), op => 
                 (left, right) => new SyntaxNode(opTable[op], left, right)
             );
         }
@@ -653,27 +653,22 @@ namespace Parser
 
         private IParser<T> Spaced<T>(IParser<T> parser)
         {
-            return Between(parser, Many(Any(Space())));
+            return Between(parser, Spaces());
         }
 
         private IParser<T> Bracketed<T>(IParser<T> parser)
         {
-            return Between(parser, Any("("), Any(")"));
+            return Between(parser, Char('('), Char(')'));
         }
 
         private IParser<T> SquareBracketed<T>(IParser<T> parser)
         {
-            return Between(parser, Any("["), Any("]"));
+            return Between(parser, Char('['), Char(']'));
         }
 
         private IParser<T> CurlyBracketed<T>(IParser<T> parser)
         {
-            return Between(parser, Any("["), Any("]"));
-        }
-
-        private string ConcatStrs(IEnumerable<string> strs)
-        {
-            return string.Join("", strs);
+            return Between(parser, Char('{'), Char('}'));
         }
 
         public ParserResult<SyntaxNode> Parse(string input)
@@ -695,6 +690,25 @@ namespace Parser
         private string Space()
         {
             return " \t\r\n";
+        }
+
+        private IParser<string> Spaces()
+        {
+            return (input) => 
+            {
+                var builder = new StringBuilder();
+                while (true)
+                {
+                    var c = input.Read();
+                    if (!" \t\r\n".Contains(c))
+                    {
+                        input.Seek(input.GetPosition()-1);                        
+                        break;
+                    }
+                    builder.Append(c);
+                }
+                return ParserResult<string>.Success(builder.ToString());
+            };
         }
 
         private IParser<SyntaxNode> LazyParseExpression()
